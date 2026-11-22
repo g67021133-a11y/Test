@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>City Runner 3D</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;font-family:Arial,sans-serif}canvas{display:block}
+#hud{position:fixed;top:12px;left:12px;color:#fff;font-weight:700;text-shadow:0 2px 5px #000;font-size:18px;z-index:2;max-width:42vw}
+#help{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);color:#fff;background:#0009;padding:9px 14px;border-radius:14px;font-size:13px;text-align:center;white-space:nowrap;z-index:2}
+#overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0009;color:#fff;z-index:4;text-align:center}
+.panel{background:#18212bef;padding:26px;border:1px solid #ffffff44;border-radius:20px;max-width:360px;margin:20px;color:#fff}
+button{background:#ffb52e;border:0;border-radius:12px;padding:13px 24px;font-size:17px;font-weight:bold;margin-top:10px}
+#turn{position:fixed;top:12px;right:12px;color:#fff;background:#0008;padding:8px 12px;border-radius:12px;z-index:2;font-size:14px}
+#chase{position:fixed;top:14px;left:50%;transform:translateX(-50%);width:min(30vw,170px);height:18px;background:#0008;border-radius:9px;overflow:hidden;z-index:2;color:#fff;font-size:11px;text-align:center;line-height:18px}
+#chaseBar{position:absolute;left:0;top:0;height:100%;background:#3ddc84}#chase b{position:relative}
+#banner{position:fixed;top:48px;left:50%;transform:translateX(-50%);color:#fff;font-weight:700;font-size:18px;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .4s;z-index:3;text-align:center;width:90%;pointer-events:none}
+#story{position:fixed;bottom:58px;left:50%;transform:translateX(-50%);width:min(92vw,520px);color:#ffe9b0;background:#000b;padding:10px 14px;border-radius:12px;font-size:14px;text-align:center;opacity:0;transition:opacity .6s;z-index:3;pointer-events:none}
+#abil{position:fixed;right:12px;bottom:62px;z-index:3;width:84px;height:84px;border-radius:50%;padding:4px;font-size:12px;line-height:1.15;margin:0;box-shadow:0 0 14px #ffb52e}
+#vig{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 120px 30px #f00;opacity:0;z-index:1}
+</style></head><body>
+<div id="hud">🪙 <span id="coins">0</span><br>🏁 <span id="distance">0</span> м<br><span id="rule" style="font-size:12px;font-weight:400"></span><br><button id="shopOpen" style="padding:7px 12px;font-size:14px;margin-top:7px">Магазин</button></div>
+<div id="turn">Беги вперёд!</div><div id="chase"><i id="chaseBar"></i><b id="chaseTxt"></b></div><div id="banner"></div><div id="story"></div><div id="vig"></div><button id="abil">⚡</button>
+<div id="help">← → полоса · ↑ прыжок · ↓ подкат · E способность · свайпы</div>
+<div id="shop" style="display:none;position:fixed;inset:0;background:#000b;z-index:6;color:#fff;align-items:center;justify-content:center">
+<div class="panel" style="width:min(92vw,390px);max-height:85vh;overflow:auto"><h1>🛍️ Магазин</h1><p>Твои монеты: <b id="shopCoins">0</b></p><div id="shopItems"></div><button id="shopClose">Закрыть</button></div></div>
+<div id="overlay"><div class="panel" id="op"></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const $=id=>document.getElementById(id),R=Math.random;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x87b9d8);scene.fog=new THREE.Fog(0x87b9d8,35,145);
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,250);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);
+const hemi=new THREE.HemisphereLight(0xffffff,0x53606a,2);scene.add(hemi);const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(-15,30,20);scene.add(sun);
+// кэш материалов и геометрий (сцена не течёт при пересборке)
+const M={},G={};
+const mat=(c,basic)=>{const k=c+(basic?'b':'');return M[k]||(M[k]=basic?new THREE.MeshBasicMaterial({color:c}):new THREE.MeshStandardMaterial({color:c,roughness:.85}))};
+const bg=(w,h,d)=>{const k=w+'_'+h+'_'+d;return G[k]||(G[k]=new THREE.BoxGeometry(w,h,d))};
+function box(p,w,h,d,m,x,y,z){const o=new THREE.Mesh(bg(w,h,d),m);o.position.set(x,y,z);p.add(o);return o}
+function figure(sh,sk,pa,ac,st){const g=new THREE.Group(),L=[],A=[];
+ box(g,.7,.9,.4,sh,0,1.3,0);box(g,.74,.14,.44,ac,0,.88,0);box(g,.5,.5,.46,sk,0,2,0);
+ for(const x of[-.19,.19]){const p=new THREE.Group();p.position.set(x,.88,0);box(p,.22,.85,.24,pa,0,-.43,0);box(p,.26,.14,.34,ac,0,-.8,-.05);g.add(p);L.push(p)}
+ for(const x of[-.47,.47]){const p=new THREE.Group();p.position.set(x,1.68,0);box(p,.22,.36,.24,sh,0,-.17,0);box(p,.17,.4,.19,sk,0,-.52,0);g.add(p);A.push(p)}
+ if(st===0){box(g,.56,.18,.5,ac,0,2.3,0);box(g,.5,.06,.3,ac,0,2.22,-.35)}
+ else if(st===1){box(g,.54,.22,.5,pa,0,2.28,.02);box(g,.55,.12,.5,ac,0,2.18,0);box(g,.1,.3,.08,ac,-.1,2,.3);box(g,.1,.3,.08,ac,.1,2,.3);box(g,.12,.8,.02,ac,0,1.3,.21)}
+ else if(st===2){box(g,.54,.14,.5,ac,0,2.3,0);for(const x of[-.18,0,.18])box(g,.1,.2,.1,ac,x,2.46,0);box(g,.7,1.1,.06,ac,0,1.25,.25)}
+ else{box(g,.56,.34,.5,pa,0,2.12,0);box(g,.5,.12,.04,ac,0,2.02,-.25);box(g,.05,.3,.05,ac,.18,2.5,.1);for(const y of[1.55,1.25,.95])box(g,.5,.06,.02,ac,0,y,.21)}
+ g.userData={L,A};return g}
+const player=new THREE.Group();scene.add(player);let model;
+const art=box(player,.4,.4,.4,new THREE.MeshBasicMaterial({color:0xffd040}),0,1.3,.35); // артефакт за спиной
+// ---------- биомы ----------
+const B=[
+{n:'Город',type:'city',sky:0x87b9d8,fog:[35,145],road:0x34383d,side:0x777b7c,bld:[0xb7a18a,0x8c9ba8,0xd2b88e,0x7e8f86,0xb6b8c2],obs:0xd94a35,light:2,rule:'',lerp:12,wind:0,cv:1},
+{n:'Пустыня',type:'desert',sky:0xe8b878,fog:[30,130],road:0x8a6c45,side:0xc9a86a,bld:[0xc47f4a,0xa65f3a,0xd49a5c],obs:0x7a4f26,light:2.3,rule:'🌬️ ветер сносит с полосы',lerp:12,wind:1,cv:1},
+{n:'Снежный перевал',type:'snow',sky:0xcfe3ee,fog:[25,110],road:0xaebcc6,side:0xf2f6f8,bld:[0xf2f6f8],obs:0x3fa7dc,light:2.2,rule:'🧊 лёд: скользко',lerp:3.6,wind:0,cv:1},
+{n:'Неоновый квартал',type:'neon',sky:0x140a2a,fog:[14,80],road:0x1b1b28,side:0x30304a,bld:[0x242438,0x2c2046,0x1d2c44],obs:0xff2fa0,light:.9,rule:'🌃 темно, но монеты ×2',lerp:12,wind:0,cv:2},
+{n:'Порт',type:'port',sky:0x9fb4c4,fog:[30,125],road:0x40454b,side:0x8a8f94,bld:[0xc0392b,0x2e6fa3,0xd8a31a,0x3d8f6a],obs:0xf1c40f,light:1.9,rule:'📦 больше стен — не зевай',lerp:12,wind:0,cv:1,wallP:.2},
+{n:'Крыши',type:'roof',sky:0xf2a65a,fog:[40,160],road:0x5a4a48,side:0x806a5e,bld:[0x7a5a50,0x9b7b6a,0x6a5048],obs:0xe74c3c,light:2.2,rule:'🌇 закат: скорость выше',lerp:12,wind:0,cv:1,spd:1.12}];
+B.forEach(b=>b.c=new THREE.Color(b.sky));
+const biomeAt=d=>B[Math.floor(Math.max(0,d)/500)%B.length],NEON=[0xff2fa0,0x2ff0ff,0xb36bff,0xffe14a];
+function build(g){
+ while(g.children.length)g.remove(g.children[0]);
+ const b=biomeAt(-g.position.z-15),ne=b.type==='neon';
+ box(g,9,.18,30,mat(b.road),0,-.12,-15);
+ for(const s of[-1,1])box(g,1.5,.22,30,mat(b.side),s*5.25,-.08,-15);
+ for(let i=0;i<8;i++)box(g,.12,.03,1.6,mat(ne?0x2ff0ff:0xf4e7bf,ne),0,0,-i*4-1);
+ for(const s of[-1,1])for(let i=0;i<3;i++){
+  const x=s*(8+i*5),z=-i*10-8,col=b.bld[(R()*b.bld.length)|0];
+  if(b.type==='desert'){const h=3+(R()*6|0);box(g,4+(R()*3|0),h,5,mat(col),x,h/2,z);
+   if(R()<.7){const cx=s*(6.6+(R()*2|0)),cz=z+5,gm=mat(0x3f7d43);box(g,.5,2.4,.5,gm,cx,1.2,cz);box(g,.9,.35,.35,gm,cx-s*.6,1.7,cz)}}
+  else if(b.type==='port'){for(let j=0,n=1+(R()*3|0);j<n;j++)box(g,4,2.6,8,mat(col),x,1.3+j*2.6,z)}
+  else if(b.type==='snow'){box(g,.5,1.5,.5,mat(0x5b3b22),x,.75,z);const c=new THREE.Mesh(G.cone||(G.cone=new THREE.ConeGeometry(2,6,7)),mat(0x2f6b45));c.position.set(x,4,z);g.add(c);
+   const sn=new THREE.Mesh(G.cone2||(G.cone2=new THREE.ConeGeometry(.9,1.6,7)),mat(0xffffff));sn.position.set(x,6.3,z);g.add(sn)}
+  else{const rf=b.type==='roof',h=(rf?3:7)+(R()*(rf?6:16)|0),w=3+(R()*3|0),d=4+(R()*4|0);box(g,w,h,d,mat(col),x,h/2-.1,z);
+   if(ne)box(g,.14,Math.round(h*.8),.4,mat(NEON[(R()*4)|0],true),x-s*(w/2+.07),h*.45,z+d/2-.6);
+   else box(g,.1,Math.round(h*.7),Math.round(d*.8),mat(0x83c5d8),x-s*(w/2+.05),h*.45,z)}
+ }}
+let segs=[],obs=[],coinsA=[],parts=[],rocks=[];
+const coinGeo=new THREE.TorusGeometry(.38,.12,8,16),goldM=new THREE.MeshStandardMaterial({color:0xffc928,emissive:0x664400});
+const laneX=[-2.7,0,2.7];
+function addCoin(x,z){const c=new THREE.Mesh(coinGeo,goldM);c.position.set(x,1.25,z);scene.add(c);coinsA.push(c)}
+function addObs(type,x,z,b){
+ let m=new THREE.Group(),h;
+ if(type==='low'){h=1.25;box(m,2,h,1,mat(b.obs),0,h/2,0);box(m,2.02,.25,1.02,mat(0xf4e7bf),0,h-.25,0)}
+ else if(type==='crate'){h=1.6;box(m,1.6,h,1.6,mat(0xa87a47),0,h/2,0);box(m,1.66,.22,1.66,mat(0x6b4a26),0,.4,0);box(m,1.66,.22,1.66,mat(0x6b4a26),0,1.2,0)}
+ else if(type==='wall'){h=3.4;box(m,1.9,h,1,mat(0x555a66),0,h/2,0);box(m,1.95,.5,1.05,mat(b.obs),0,h-.7,0)}
+ else{h=1.7;box(m,1.7,h,1.7,mat(0x666a70),0,h/2,0)}
+ m.position.set(x,0,z);scene.add(m);const o={m,type,h,fall:false};obs.push(o);return o}
+let nextZ=-35;
+function spawn(){
+ const b=biomeAt(-nextZ),f=(R()*3)|0;
+ for(let i=0;i<3;i++){if(i===f)continue;const r=R();
+  if(r<.32)addObs('low',laneX[i],nextZ,b);else if(r<.62)addObs('crate',laneX[i],nextZ,b);else if(r<.72+(b.wallP||0)&&-nextZ>150)addObs('wall',laneX[i],nextZ,b)}
+ for(let k=0;k<5;k++)addCoin(laneX[f],nextZ-k*2.2+4);
+ nextZ-=13+R()*7}
+function addRock(i){const mk=box(scene,2,.05,2,mat(0xff2020,true),laneX[i],.05,0);rocks.push({x:laneX[i],z:pos.z-45,t:1.4,mk});mk.position.z=pos.z-45}
+function smash(o){
+ for(let i=0;i<10;i++){const m=new THREE.Mesh(bg(.3,.3,.3),mat(0xa87a47));m.position.set(o.m.position.x,.8,o.m.position.z);scene.add(m);parts.push({m,v:new THREE.Vector3((R()-.5)*7,R()*6+2,(R()-.5)*7),l:.9})}
+ scene.remove(o.m);o.dead=true;score+=2;runCoins+=2;qAdd('crate',1);sfx('boom');gap=Math.min(45,gap+1);updateHud()}
+// ---------- состояние ----------
+let score=+localStorage.getItem('crScore')||0,runCoins=0,dist=0,speedV=13,active=false,paused=false,won=false,runT=0,recT=0,rec=[],gap=30,inv=0,slowT=0,boostT=0,magT=0,shake=0,evT=16,storyIdx=-1,lastB=null,bt,st;
+const pos=new THREE.Vector3(),cs=()=>skins.find(x=>x.id===equippedSkin)||skins[0],skins=[
+{id:'blue',name:'Городской бегун',price:0,color:0x1679c5,acc:0xffd23f,st:0,ab:'breath',abName:'Второе дыхание',cd:25,desc:'отрыв от погони +14 м'},
+{id:'red',name:'Красный спринтер',price:35,color:0xd94343,acc:0xffffff,st:1,ab:'sprint',abName:'Спринт',cd:20,desc:'2.5 с рывок ×1.4, сносишь всё на пути'},
+{id:'gold',name:'Золотой бегун',price:90,color:0xe5ad22,acc:0xfff0a0,st:2,ab:'rain',abName:'Золотой дождь',cd:30,desc:'6 с магнит и монеты ×2'},
+{id:'purple',name:'Неоновый бегун',price:150,color:0x874bd1,acc:0x2ff0ff,st:3,ab:'phase',abName:'Фазовый сдвиг',cd:28,desc:'3 с проходишь сквозь препятствия'}];
+let ownedSkins=JSON.parse(localStorage.getItem('cityRunnerSkins')||'["blue"]'),equippedSkin=localStorage.getItem('cityRunnerEquipped')||'blue';
+let laneTarget=1,jump=0,slide=0;
+const banner=(t,ms=3200)=>{const e=$('banner');e.textContent=t;e.style.opacity=1;clearTimeout(bt);bt=setTimeout(()=>e.style.opacity=0,ms)};
+const story=t=>{const e=$('story');e.textContent=t;e.style.opacity=1;clearTimeout(st);st=setTimeout(()=>e.style.opacity=0,7000)};
+// ---------- погоня ----------
+const car=new THREE.Group();box(car,2.4,1.1,4.5,mat(0x15171c),0,.7,0);box(car,2,.7,2,mat(0x2a2f3a),0,1.5,.3);
+const sirA=box(car,.9,.3,.5,new THREE.MeshBasicMaterial({color:0xff2020}),-.5,1.95,.3),sirB=box(car,.9,.3,.5,new THREE.MeshBasicMaterial({color:0x2060ff}),.5,1.95,.3);scene.add(car);car.visible=false;
+// ---------- призраки ----------
+let saved=[];try{saved=JSON.parse(localStorage.getItem('crGhosts')||'[]')}catch(e){}
+let ghosts=[];
+function label(t){const c=document.createElement('canvas');c.width=256;c.height=64;const x=c.getContext('2d');x.font='bold 24px Arial';x.textAlign='center';x.lineWidth=4;x.strokeStyle='#000';x.fillStyle='#fff';x.strokeText(t,128,40);x.fillText(t,128,40);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false}));s.scale.set(4,1,1);s.position.y=3.1;return s}
+function ghostFig(col,name){const m=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.4,depthWrite:false}),f=figure(m,m,m,m,0);f.add(label(name));return f}
+function setupGhosts(){ghosts.forEach(g=>scene.remove(g.f));ghosts=[];
+ saved.forEach(s=>ghosts.push({f:ghostFig(0x7fd8ff,s.n+' · '+s.d+' м'),s}));
+ [['Лиса (бот)',16.2,0],['Тень_Макс (бот)',14.4,1]].forEach(([n,v,o])=>ghosts.push({f:ghostFig(0xffa0e0,n),bot:v,o}));
+ ghosts.forEach(g=>scene.add(g.f))}
+function trim(){const mine=saved.filter(x=>!x.fr).sort((a,b)=>b.d-a.d).slice(0,3);mine.forEach((s,i)=>s.n=i?'Ты #'+(i+1):'Твой рекорд');saved=mine.concat(saved.filter(x=>x.fr).slice(-3));try{localStorage.setItem('crGhosts',JSON.stringify(saved))}catch(e){}setupGhosts()}
+function saveGhost(){if(rec.length>=30){saved=saved.filter(x=>x!==curGhost);curGhost={n:'',d:Math.floor(dist),s:rec};saved.push(curGhost)}trim()}
+function updGhosts(){for(const g of ghosts){let d,x,y=0,ok=true;
+ if(g.bot){d=runT*g.bot;x=Math.sin(runT*.6+g.o*2)*2.7}
+ else{const i=runT/.2,a=Math.floor(i),s=g.s.s,f=i-a;if(a*3+5>=s.length)ok=false;else{const k=a*3;d=s[k]+(s[k+3]-s[k])*f;x=s[k+1]+(s[k+4]-s[k+1])*f;y=s[k+2]+(s[k+5]-s[k+2])*f}}
+ g.f.visible=ok;if(ok)g.f.position.set(x,y,-d)}}
+// ---------- сюжет ----------
+const S=['Глава 1 · Кража. Ты вынес «Сердце города» из хранилища корпорации «Ноктюрн». Охрана уже на хвосте!','Глава 2 · Пустыня. Артефакт гудит и нагревается. Дроны «Ноктюрн» ищут тебя с воздуха.','Глава 3 · Перевал. Лёд коварен, но убежище уже близко. Не дай им себя догнать!','Глава 4 · Неон. Последний рывок через квартал «Ноктюрн». Впереди огни убежища!','Глава 5 · Порт. Контейнеры «Ноктюрн» повсюду. Убежище на другой стороне гавани!','Глава 6 · Крыши. Закат и финальный рывок над городом. Ещё немного!'];
+// ---------- интерфейс ----------
+function updateHud(){$('coins').textContent=score;$('distance').textContent=Math.floor(dist);$('shopCoins').textContent=score}
+function applySkin(){const s=cs();if(model)player.remove(model);model=figure(mat(s.color),mat(0xf0b98b),mat(0x252c3d),mat(s.acc,true),s.st);player.add(model)}
+let dashT=0,phaseT=0,dblT=0,abCd=0;
+function useAbility(){if(!active||paused||abCd>0)return;const s=cs();const m=1+.15*(up[s.id]||0);abCd=s.cd*(1-.1*(up[s.id]||0));sfx('ab');
+ if(s.ab==='breath'){gap=Math.min(45,gap+14*m);banner('💨 Второе дыхание: отрыв +14 м')}
+ else if(s.ab==='sprint'){dashT=2.5*m;banner('🔥 Спринт: сносишь всё на пути!')}
+ else if(s.ab==='rain'){magT=Math.max(magT,6*m);dblT=6*m;banner('✨ Золотой дождь: магнит и монеты ×2')}
+ else{phaseT=3*m;banner('🌀 Фазовый сдвиг: проходишь сквозь препятствия')}}
+$('abil').onclick=useAbility;
+let weather=0,wT=40,boss=0,bossFire=0,bossDone=-1,curGhost=null,hasPet=localStorage.getItem('crPet')==='1',up={};try{up=JSON.parse(localStorage.getItem('crUp'))||{}}catch(e){}
+const td=new Date().toDateString();let Q;try{Q=JSON.parse(localStorage.getItem('crQ'))}catch(e){}if(!Q||Q.d!==td)Q={d:td,p:{crate:0,dist:0,coin:0},done:[]};
+const QD=[{k:'crate',t:'Разбей 15 ящиков',n:15,r:30},{k:'dist',t:'Пробеги 1500 м',n:1500,r:40},{k:'coin',t:'Собери 80 монет',n:80,r:35}];
+function qAdd(k,v){Q.p[k]+=v;for(const q of QD)if(q.k===k&&!Q.done.includes(k)&&Q.p[k]>=q.n){Q.done.push(k);score+=q.r;banner('✅ Задание: '+q.t+' (+'+q.r+' 🪙)');sfx('q');updateHud()}}
+let AC,sound=localStorage.getItem('crSnd')!=='0',mn=0;
+function tone(f,d,ty,v){if(!sound)return;try{AC=AC||new AudioContext();if(AC.state==='suspended')AC.resume();const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;o.type=ty;o.frequency.value=f;g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(t+d)}catch(e){}}
+const SFX={coin:[880,.08,'square',.04],hit:[110,.3,'sawtooth',.1],ab:[520,.35,'triangle',.08],q:[660,.4,'sine',.1],thunder:[60,.7,'sawtooth',.12],boom:[90,.25,'square',.08],boss:[300,.5,'sawtooth',.07]};
+const sfx=t=>tone(...SFX[t]);
+const SC=[[261,329,392,523],[220,261,329,392],[294,349,440,587],[196,233,311,392],[247,311,370,494],[330,392,494,659]],PT=[0,2,1,3,0,2,3,1];
+setInterval(()=>{if(!active||paused)return;mn++;tone(SC[Math.floor(dist/500)%B.length][PT[mn%8]],.22,'triangle',.035);if(gap<10&&mn%3===0)tone(mn%6?700:900,.15,'square',.025)},240);
+const pet=new THREE.Group();box(pet,.4,.25,.4,mat(0x2a2f3a),0,0,0);box(pet,.7,.05,.1,mat(0xcccccc),0,.18,0);box(pet,.12,.12,.12,mat(0x2ff0ff,true),0,-.05,-.22);scene.add(pet);
+const heli=new THREE.Group();box(heli,3,1.2,3.5,mat(0x2a2f3a),0,0,0);box(heli,8,.08,.5,mat(0x999999),0,.8,0);box(heli,.4,.4,3,mat(0x2a2f3a),0,.2,3);box(heli,.5,.3,.2,mat(0xff2020,true),0,-.2,-1.8);heli.visible=false;scene.add(heli);
+const rainG=new THREE.BufferGeometry(),rp=new Float32Array(900);for(let i=0;i<900;i+=3){rp[i]=(R()-.5)*30;rp[i+1]=R()*14;rp[i+2]=(R()-.5)*40-10}
+rainG.setAttribute('position',new THREE.BufferAttribute(rp,3));const rain=new THREE.Points(rainG,new THREE.PointsMaterial({color:0xaac8ff,size:.12}));rain.frustumCulled=false;rain.visible=false;scene.add(rain);
+function renderShop(){const root=$('shopItems');root.innerHTML='';$('shopCoins').textContent=score;
+ skins.forEach(s=>{const owned=ownedSkins.includes(s.id),eq=equippedSkin===s.id,row=document.createElement('div');
+  row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #ffffff33;text-align:left';
+  const info=document.createElement('div');info.innerHTML='<b>'+s.name+'</b><br><small>'+(s.price?'🪙 '+s.price:'Бесплатно')+'</small><br><small>⚡ '+s.abName+': '+s.desc+'</small>';
+  const btn=document.createElement('button');btn.style.cssText='margin:0;padding:9px 12px;font-size:13px';btn.textContent=eq?'Выбрано':owned?'Надеть':'Купить';btn.disabled=eq;
+  btn.onclick=()=>{if(owned){equippedSkin=s.id;localStorage.setItem('cityRunnerEquipped',s.id);applySkin();renderShop();return}
+   if(score<s.price){btn.textContent='Не хватает монет';return}
+   score-=s.price;saveAll();ownedSkins.push(s.id);equippedSkin=s.id;localStorage.setItem('cityRunnerSkins',JSON.stringify(ownedSkins));localStorage.setItem('cityRunnerEquipped',s.id);applySkin();updateHud();renderShop()};
+  const w=document.createElement('div');w.append(btn);
+  if(owned){const l=up[s.id]||0,c=40*(l+1),ub=document.createElement('button');ub.style.cssText=btn.style.cssText+';background:#7fd8ff;display:block;margin-top:4px';ub.textContent=l>=3?'Ур. MAX':'⬆ Ур.'+l+' · 🪙'+c;ub.disabled=l>=3;ub.onclick=()=>{if(score<c){ub.textContent='Не хватает монет';return}score-=c;up[s.id]=l+1;saveAll();updateHud();renderShop()};w.append(ub)}
+  row.append(info,w);root.append(row)});
+ const pb=document.createElement('button');pb.style.cssText='margin:12px 0 0;padding:10px 14px;font-size:14px;width:100%';pb.textContent=hasPet?'🛸 Дрон-помощник: куплен':'🛸 Дрон-помощник · 🪙120 (шире сбор монет)';pb.disabled=hasPet;pb.onclick=()=>{if(score<120){pb.textContent='Не хватает монет';return}score-=120;hasPet=true;saveAll();updateHud();renderShop()};root.append(pb)}
+function shopOpen(){paused=true;renderShop();$('shop').style.display='flex'}
+$('shopOpen').onclick=shopOpen;
+$('shopClose').onclick=()=>{$('shop').style.display='none';paused=false;saveAll();if(!active)menu()};
+function panel(html,btns){const o=$('op');o.innerHTML=html+btns.map((b,i)=>'<br><button class="mb" data-i="'+i+'">'+b[0]+'</button>').join('');o.querySelectorAll('.mb').forEach(e=>e.onclick=btns[+e.dataset.i][1]);$('overlay').style.display='flex'}
+const ghostTxt=()=>'<small>👻 Призраки на трассе: '+ghosts.map(g=>g.s?g.s.n+' ('+g.s.d+' м)':g.f.children[g.f.children.length-1]&&'').filter(Boolean).concat(['Лиса и Тень_Макс (боты)']).join(', ')+'</small>';
+let best=+localStorage.getItem('crBest')||0;
+function saveAll(){try{localStorage.setItem('crScore',score);localStorage.setItem('crQ',JSON.stringify(Q));localStorage.setItem('crUp',JSON.stringify(up));localStorage.setItem('crPet',hasPet?1:0);localStorage.setItem('crBest',best)}catch(e){}}
+const back=['← Назад',()=>menu()];
+function menu(){panel('<h1>🏃 CITY RUNNER 3D</h1><p>Ты украл «Сердце города» у корпорации «Ноктюрн». Добеги до убежища (3000 м)!</p><p><small>🪙 '+score+' · Рекорд: '+best+' м</small></p>',[['▶ Играть',begin],['👤 Персонажи и улучшения',shopOpen],['📋 Задания дня',quests],['👻 Призраки',ghostMenu],['📖 Сюжет',lore],['🔊 Звук: '+(sound?'вкл':'выкл'),()=>{sound=!sound;localStorage.setItem('crSnd',sound?1:0);menu()}]])}
+function quests(){panel('<h1>📋 Задания дня</h1><p style="text-align:left">'+QD.map(q=>(Q.done.includes(q.k)?'✅ ':'⬜ ')+q.t+' — '+Math.min(q.n,Math.floor(Q.p[q.k]))+'/'+q.n+' (+'+q.r+' 🪙)').join('<br>')+'</p>',[back])}
+function lore(){panel('<h1>📖 Сюжет</h1><p style="text-align:left;font-size:13px">'+S.join('<br><br>')+'</p>',[back])}
+function ghostMenu(){panel('<h1>👻 Призраки</h1><p><small>'+(saved.length?saved.map(x=>x.n+' — '+x.d+' м').join('<br>'):'Пока нет записанных забегов')+'</small></p><p><small>Меняйся кодами с друзьями — их призраки побегут рядом с тобой.</small></p>',[['📤 Экспорт лучшего',()=>{const m=saved.find(x=>!x.fr);if(!m)return alert('Сначала пробеги забег');prompt('Скопируй код и отправь другу:',btoa(unescape(encodeURIComponent(JSON.stringify({d:m.d,s:m.s})))))}],['📥 Импорт друга',()=>{const c=prompt('Вставь код призрака:');if(!c)return;try{const o=JSON.parse(decodeURIComponent(escape(atob(c.trim()))));if(!Array.isArray(o.s)||!(o.d>=0)||o.s.length>2700||o.s.some(v=>typeof v!=='number'))throw 0;saved.push({n:(prompt('Имя друга?')||'Друг').slice(0,14),d:Math.floor(o.d),s:o.s,fr:1});trim();ghostMenu()}catch(e){alert('Неверный код')}}],back])}
+function finish(){active=false;best=Math.max(best,Math.floor(dist));saveAll()}
+function end(){finish();car.visible=true;saveGhost();panel('<h1>Тебя поймали!</h1><p>«Ноктюрн» вернул артефакт.<br>Монеты за забег: '+runCoins+'<br>Дистанция: '+Math.floor(dist)+' м</p>'+ghostTxt(),[['Ещё раз',begin],['🏠 В меню',menu]])}
+function win(){finish();won=true;saveGhost();panel('<h1>🏆 Побег удался!</h1><p>Ты добрался до убежища с «Сердцем города». Но «Ноктюрн» не сдаётся…<br>Монеты за забег: '+runCoins+'</p>',[['Бежать дальше',()=>{$('overlay').style.display='none';active=true}],['🏠 В меню',menu]])}
+function reset(){segs.forEach(g=>scene.remove(g));segs=[];[...obs.map(o=>o.m),...coinsA,...parts.map(p=>p.m),...rocks.map(r=>r.mk)].forEach(m=>scene.remove(m));obs=[];coinsA=[];parts=[];rocks=[];
+ runCoins=0;dist=0;runT=0;recT=0;rec=[];gap=30;inv=0;slowT=0;boostT=0;magT=0;shake=0;evT=16;nextZ=-35;storyIdx=-1;won=false;lastB=null;dashT=phaseT=dblT=abCd=0;weather=0;wT=40;boss=0;bossDone=-1;rain.visible=false;heli.visible=false;curGhost=null;
+ pos.set(0,0,0);laneTarget=1;jump=0;slide=0;player.position.set(0,0,0);player.scale.set(1,1,1);player.visible=true;car.visible=false;
+ scene.background.copy(B[0].c);scene.fog.color.copy(B[0].c);scene.fog.near=35;scene.fog.far=145;hemi.intensity=2;
+ for(let i=0;i<7;i++){const g=new THREE.Group();g.position.z=-i*30;scene.add(g);build(g);segs.push(g)}updateHud()}
+function begin(){reset();active=true;$('overlay').style.display='none'}
+// ---------- события и урон ----------
+function hurt(msg){if(inv>0)return;inv=1.6;sfx('hit');slowT=1;gap-=14;shake=.6;banner(msg,1500);if(gap<=0)end()}
+function event(){const r=(R()*3)|0;
+ if(r===0){banner('⚠️ ОБВАЛ! Смотри на красные метки');const a=(R()*3)|0;addRock(a);addRock((a+1+(R()*2|0))%3)}
+ else if(r===1){magT=8;banner('🧲 Магнитная буря: монеты летят к тебе')}
+ else{boostT=6;banner('🚁 Дрон-охотник! Скорость выше, монеты ×2')}}
+// ---------- управление ----------
+function action(a){if(!active||paused)return;
+ if(a==='left'||a==='right'){laneTarget=Math.max(0,Math.min(2,laneTarget+(a==='left'?-1:1)));$('turn').textContent=['Левая полоса','Центральная полоса','Правая полоса'][laneTarget]}
+ if(a==='jump'&&jump===0&&slide<=0)jump=.001;if(a==='slide'&&jump===0)slide=.7}
+addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(k===' ')e.preventDefault();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+ if(k==='arrowleft'||k==='a')action('left');if(k==='arrowright'||k==='d')action('right');if(k==='arrowup'||k==='w'||k===' ')action('jump');if(k==='arrowdown'||k==='s')action('slide');if(k==='e'||k==='shift')useAbility()});
+let sx=0,sy=0;addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.max(Math.abs(dx),Math.abs(dy))<25)return;if(Math.abs(dx)>Math.abs(dy))action(dx<0?'left':'right');else action(dy<0?'jump':'slide')},{passive:true});
+// ---------- цикл ----------
+let last=performance.now();
+function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.04);last=now;
+ const cur=biomeAt(dist);
+ scene.background.lerp(cur.c,Math.min(1,dt*.9));scene.fog.color.copy(scene.background);scene.fog.near+=(cur.fog[0]-scene.fog.near)*dt;scene.fog.far+=(cur.fog[1]*(weather?.75:1)-scene.fog.far)*dt;pet.visible=hasPet;pet.position.set(pos.x+1.2,2.6+Math.sin(now/300)*.15,pos.z-.4);hemi.intensity+=(cur.light-hemi.intensity)*dt;
+ if(cur!==lastB){lastB=cur;$('rule').textContent=cur.n+(cur.rule?' · '+cur.rule:'');if(active&&dist>1)banner('📍 '+cur.n+(cur.rule?' — '+cur.rule:''),4000)}
+ if(active&&!paused){
+  runT+=dt;slowT-=dt;boostT-=dt;magT-=dt;inv-=dt;dashT-=dt;phaseT-=dt;dblT-=dt;abCd=Math.max(0,abCd-dt);shake=Math.max(0,shake-dt);
+  const sp=Math.min(20,13+dist/500)*(slowT>0?.65:1)*(boostT>0?1.25:1)*(dashT>0?1.4:1)*(cur.spd||1);dist+=sp*dt;qAdd('dist',sp*dt);pos.z-=sp*dt;gap=Math.min(45,gap+dt*.5);
+  const k=Math.floor(dist/500);if(k!==storyIdx){storyIdx=k;story(k<6?S[k]:'Новый круг. «Ноктюрн» не сдаётся — их машины стали быстрее.')}
+  if(!won&&dist>=3000){win()}
+  evT-=dt;if(evT<=0&&dist>120){evT=14+R()*8;event()}
+  wT-=dt;if(wT<=0){wT=35+R()*30;weather=(R()*3)|0;rain.visible=weather>0;banner(['☀️ Погода ясная','🌧️ Дождь: видимость хуже, скользко','⛈️ Гроза! Молнии и ливень'][weather],2500)}
+  if(weather===2&&R()<.004){hemi.intensity=6;sfx('thunder')}
+  if(rain.visible){rain.position.set(pos.x,0,pos.z);for(let i=1;i<900;i+=3){rp[i]-=25*dt;if(rp[i]<0)rp[i]+=14}rainG.attributes.position.needsUpdate=true}
+  const bk=Math.floor((dist-300)/500);if(dist>300&&bk>bossDone){bossDone=bk;boss=12;bossFire=1;heli.visible=true;banner('🚁 БОСС: вертолёт «Ноктюрн» обстреливает полосы!',3500);sfx('boss')}
+  if(boss>0){boss-=dt;bossFire-=dt;heli.position.set(pos.x*.5+Math.sin(runT)*3,9,pos.z-28);heli.children[1].rotation.y+=dt*30;if(bossFire<=0){bossFire=1.1;addRock((R()*3)|0)}
+   if(boss<=0){heli.visible=false;score+=20;runCoins+=20;banner('✅ Вертолёт отстал! +20 🪙');updateHud()}}
+  while(nextZ>pos.z-170)spawn();
+  const wind=cur.wind?Math.sin(runT*.8)*1.0:0;
+  pos.x+=(laneX[laneTarget]+wind-pos.x)*Math.min(1,dt*cur.lerp*(weather?.7:1));
+  player.position.x=pos.x;player.position.z=pos.z;
+  if(jump>0){jump+=dt*2.8;player.position.y=Math.sin(Math.min(jump,Math.PI))*2.05;if(jump>=Math.PI){jump=0;player.position.y=0}}
+  if(slide>0){slide-=dt;player.scale.y=.48}else player.scale.y=1;
+  player.visible=phaseT>0?Math.floor(runT*20)%2===0:(inv<=0||Math.floor(runT*12)%2===0);art.scale.setScalar(1+Math.sin(runT*6)*.2);
+  {const u=model.userData,w=jump>0?0:Math.sin(runT*13)*.9;u.L[0].rotation.x=w;u.L[1].rotation.x=-w;u.A[0].rotation.x=-w;u.A[1].rotation.x=w;if(jump>0){u.L[0].rotation.x=-.6;u.L[1].rotation.x=.4;u.A[0].rotation.x=u.A[1].rotation.x=-2.4}}
+  $('abil').textContent=abCd>0?Math.ceil(abCd)+' с':'⚡ '+cs().abName;$('abil').style.opacity=abCd>0?.5:1;
+  const tx=pos.x,sh=shake*.5;camera.position.lerp(new THREE.Vector3(tx,5.1,pos.z+7),dt*5);camera.position.x+=(R()-.5)*sh;camera.position.y+=(R()-.5)*sh;camera.lookAt(tx,1.2,pos.z-5);
+  for(const s of segs)if(s.position.z-pos.z>35){s.position.z-=210;build(s)}
+  // монеты
+  for(let i=coinsA.length-1;i>=0;i--){const c=coinsA[i];c.rotation.y+=dt*3;
+   if(magT>0&&Math.hypot(c.position.x-pos.x,c.position.z-pos.z)<10){const v=new THREE.Vector3(pos.x,1.2,pos.z).sub(c.position).normalize().multiplyScalar(22*dt);c.position.add(v)}
+   if(Math.abs(c.position.x-pos.x)<(hasPet?2.6:1.35)&&Math.abs(c.position.z-pos.z)<1.45){scene.remove(c);coinsA.splice(i,1);{const v=cur.cv*(boostT>0||dblT>0?2:1);score+=v;runCoins+=v;qAdd('coin',v);sfx('coin')}gap=Math.min(45,gap+.4);updateHud()}
+   else if(c.position.z>pos.z+12){scene.remove(c);coinsA.splice(i,1)}}
+  // метки обвала
+  for(let i=rocks.length-1;i>=0;i--){const r=rocks[i];r.t-=dt;r.mk.visible=Math.floor(r.t*8)%2===0;
+   if(r.t<=0){scene.remove(r.mk);rocks.splice(i,1);const o=addObs('rock',r.x,r.z,cur);o.fall=true;o.m.position.y=14}}
+  // препятствия
+  for(let i=obs.length-1;i>=0;i--){const o=obs[i];
+   if(o.dead||o.m.position.z>pos.z+12){scene.remove(o.m);obs.splice(i,1);continue}
+   if(o.fall){o.m.position.y-=22*dt;if(o.m.position.y<=0){o.m.position.y=0;o.fall=false;shake=.5}continue}
+   if(Math.abs(o.m.position.x-pos.x)<1.15&&Math.abs(o.m.position.z-pos.z)<1.2){
+    if((o.type==='crate'&&slide>0)||dashT>0){smash(o);continue}
+    if(phaseT>0)continue;
+    if(player.position.y>o.h-.1&&o.type!=='wall')continue;
+    hurt(o.type==='wall'?'💥 Стена! Погоня ближе':'💥 Ты споткнулся! Погоня ближе')}}
+  // частицы
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.l-=dt;p.v.y-=18*dt;p.m.position.addScaledVector(p.v,dt);if(p.l<=0){scene.remove(p.m);parts.splice(i,1)}}
+  // призраки и запись
+  updGhosts();recT+=dt;if(recT>=.2&&rec.length<2700){recT-=.2;rec.push(+dist.toFixed(1),+pos.x.toFixed(1),+player.position.y.toFixed(1))}
+  // погоня
+  car.position.set(pos.x*.9,0,pos.z+gap*.6);car.visible=gap<10;sirA.visible=Math.floor(runT*6)%2===0;sirB.visible=!sirA.visible;
+  const gp=Math.max(0,gap)/45;$('chaseBar').style.width=gp*100+'%';$('chaseBar').style.background=gap<12?'#ff4a4a':gap<24?'#ffb52e':'#3ddc84';$('chaseTxt').textContent='🚔 '+Math.max(0,Math.round(gap))+' м';
+  $('vig').style.opacity=Math.min(1,Math.max(0,(12-gap)/12)*.7+Math.max(0,inv-1.1));
+  updateHud()}else if(!active){const t=now/2500;camera.position.set(pos.x+Math.sin(t)*4,2.6,pos.z+Math.cos(t)*4);camera.lookAt(pos.x,1.3,pos.z)}
+ renderer.render(scene,camera)}
+camera.position.set(0,5,8);camera.lookAt(0,1,0);applySkin();reset();setupGhosts();menu();requestAnimationFrame(animate);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script></body></html>
