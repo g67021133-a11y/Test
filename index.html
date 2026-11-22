@@ -10,13 +10,14 @@ button{background:#ffb52e;border:0;border-radius:12px;padding:13px 24px;font-siz
 #turn{position:fixed;top:12px;right:12px;color:#fff;background:#0008;padding:8px 12px;border-radius:12px;z-index:2;font-size:14px}
 #chase{position:fixed;top:14px;left:50%;transform:translateX(-50%);width:min(30vw,170px);height:18px;background:#0008;border-radius:9px;overflow:hidden;z-index:2;color:#fff;font-size:11px;text-align:center;line-height:18px}
 #chaseBar{position:absolute;left:0;top:0;height:100%;background:#3ddc84}#chase b{position:relative}
-#banner{position:fixed;top:48px;left:50%;transform:translateX(-50%);color:#fff;font-weight:700;font-size:18px;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .4s;z-index:3;text-align:center;width:90%;pointer-events:none}
+#pred{position:fixed;top:36px;left:50%;transform:translateX(-50%);color:#ffd9a0;font-size:11px;z-index:2;text-shadow:0 1px 3px #000;text-align:center;width:90%;pointer-events:none}
+#banner{position:fixed;top:64px;left:50%;transform:translateX(-50%);color:#fff;font-weight:700;font-size:18px;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .4s;z-index:3;text-align:center;width:90%;pointer-events:none}
 #story{position:fixed;bottom:58px;left:50%;transform:translateX(-50%);width:min(92vw,520px);color:#ffe9b0;background:#000b;padding:10px 14px;border-radius:12px;font-size:14px;text-align:center;opacity:0;transition:opacity .6s;z-index:3;pointer-events:none}
 #abil{position:fixed;right:12px;bottom:62px;z-index:3;width:84px;height:84px;border-radius:50%;padding:4px;font-size:12px;line-height:1.15;margin:0;box-shadow:0 0 14px #ffb52e}
 #vig{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 120px 30px #f00;opacity:0;z-index:1}
 </style></head><body>
 <div id="hud">🪙 <span id="coins">0</span><br>🏁 <span id="distance">0</span> м<br><span id="rule" style="font-size:12px;font-weight:400"></span><br><button id="shopOpen" style="padding:7px 12px;font-size:14px;margin-top:7px">Магазин</button></div>
-<div id="turn">Беги вперёд!</div><div id="chase"><i id="chaseBar"></i><b id="chaseTxt"></b></div><div id="banner"></div><div id="story"></div><div id="vig"></div><button id="abil">⚡</button>
+<div id="turn">Беги вперёд!</div><div id="chase"><i id="chaseBar"></i><b id="chaseTxt"></b></div><div id="banner"></div><div id="pred"></div><div id="story"></div><div id="vig"></div><button id="abil">⚡</button>
 <div id="help">← → полоса · ↑ прыжок · ↓ подкат · E способность · свайпы</div>
 <div id="shop" style="display:none;position:fixed;inset:0;background:#000b;z-index:6;color:#fff;align-items:center;justify-content:center">
 <div class="panel" style="width:min(92vw,390px);max-height:85vh;overflow:auto"><h1>🛍️ Магазин</h1><p>Твои монеты: <b id="shopCoins">0</b></p><div id="shopItems"></div><button id="shopClose">Закрыть</button></div></div>
@@ -79,6 +80,7 @@ function addObs(type,x,z,b){
  let m=new THREE.Group(),h;
  if(type==='low'){h=1.25;box(m,2,h,1,mat(b.obs),0,h/2,0);box(m,2.02,.25,1.02,mat(0xf4e7bf),0,h-.25,0)}
  else if(type==='crate'){h=1.6;box(m,1.6,h,1.6,mat(0xa87a47),0,h/2,0);box(m,1.66,.22,1.66,mat(0x6b4a26),0,.4,0);box(m,1.66,.22,1.66,mat(0x6b4a26),0,1.2,0)}
+ else if(type==='beam'){h=0;for(const sx of[-.95,.95])box(m,.2,2.6,.2,mat(0x333840),sx,1.3,0);box(m,2,.6,.5,mat(0xff7a00,true),0,1.7,0)}
  else if(type==='wall'){h=3.4;box(m,1.9,h,1,mat(0x555a66),0,h/2,0);box(m,1.95,.5,1.05,mat(b.obs),0,h-.7,0)}
  else{h=1.7;box(m,1.7,h,1.7,mat(0x666a70),0,h/2,0)}
  m.position.set(x,0,z);scene.add(m);const o={m,type,h,fall:false};obs.push(o);return o}
@@ -146,6 +148,18 @@ const SC=[[261,329,392,523],[220,261,329,392],[294,349,440,587],[196,233,311,392
 setInterval(()=>{if(!active||paused)return;mn++;tone(SC[Math.floor(dist/500)%B.length][PT[mn%8]],.22,'triangle',.035);if(gap<10&&mn%3===0)tone(mn%6?700:900,.15,'square',.025)},240);
 const pet=new THREE.Group();box(pet,.4,.25,.4,mat(0x2a2f3a),0,0,0);box(pet,.7,.05,.1,mat(0xcccccc),0,.18,0);box(pet,.12,.12,.12,mat(0x2ff0ff,true),0,-.05,-.22);scene.add(pet);
 const heli=new THREE.Group();box(heli,3,1.2,3.5,mat(0x2a2f3a),0,0,0);box(heli,8,.08,.5,mat(0x999999),0,.8,0);box(heli,.4,.4,3,mat(0x2a2f3a),0,.2,3);box(heli,.5,.3,.2,mat(0xff2020,true),0,-.2,-1.8);heli.visible=false;scene.add(heli);
+let ph={j:0,s:0,c:[0,0,0]},habit=null,favLane=1,anT=12,trapT=8;
+const HT={jump:'прыжки → ловушки сверху (скользи!)',slide:'подкаты → низкие барьеры (прыгай!)',lane:'монеты у одной стороны → засада (смени сторону!)'};
+function analyze(){const L=Math.max(...ph.c),h=[['jump',ph.j],['slide',ph.s],['lane',L]].sort((a,b)=>b[1]-a[1]);
+ if(h[0][1]<3||h[0][1]<h[1][1]*1.4){if(habit){gap=Math.min(45,gap+3);banner('🐆 Хищник сбит с толку! Отрыв +3 м',2500)}habit=null;$('pred').textContent='🐆 Хищник не может тебя прочитать'}
+ else{if(habit!==h[0][0])banner('🐆 Хищник изучил тебя: '+HT[h[0][0]],4000);habit=h[0][0];favLane=ph.c.indexOf(L);$('pred').textContent='🐆 Привычка: '+HT[habit]}
+ ph.j*=.5;ph.s*=.5;ph.c=ph.c.map(v=>v*.5)}
+function trap(){const z=pos.z-45;if(obs.some(o=>Math.abs(o.m.position.z-z)<13)){trapT=1;return}
+ const b=biomeAt(dist),ln=habit==='lane'?favLane:dist>1500?laneTarget:(R()*3|0),x=laneX[ln];
+ if(habit==='jump')addObs('beam',x,z,b);
+ else if(habit==='slide'){addObs('low',x,z,b);addObs('low',x,z-6,b)}
+ else{addObs('wall',x,z,b);for(let k=0;k<4;k++)addCoin(x,z+3+k*2.2)}
+ banner('🐆 Ловушка!',900)}
 const rainG=new THREE.BufferGeometry(),rp=new Float32Array(900);for(let i=0;i<900;i+=3){rp[i]=(R()-.5)*30;rp[i+1]=R()*14;rp[i+2]=(R()-.5)*40-10}
 rainG.setAttribute('position',new THREE.BufferAttribute(rp,3));const rain=new THREE.Points(rainG,new THREE.PointsMaterial({color:0xaac8ff,size:.12}));rain.frustumCulled=false;rain.visible=false;scene.add(rain);
 function renderShop(){const root=$('shopItems');root.innerHTML='';$('shopCoins').textContent=score;
@@ -176,7 +190,7 @@ function finish(){active=false;best=Math.max(best,Math.floor(dist));saveAll()}
 function end(){finish();car.visible=true;saveGhost();panel('<h1>Тебя поймали!</h1><p>«Ноктюрн» вернул артефакт.<br>Монеты за забег: '+runCoins+'<br>Дистанция: '+Math.floor(dist)+' м</p>'+ghostTxt(),[['Ещё раз',begin],['🏠 В меню',menu]])}
 function win(){finish();won=true;saveGhost();panel('<h1>🏆 Побег удался!</h1><p>Ты добрался до убежища с «Сердцем города». Но «Ноктюрн» не сдаётся…<br>Монеты за забег: '+runCoins+'</p>',[['Бежать дальше',()=>{$('overlay').style.display='none';active=true}],['🏠 В меню',menu]])}
 function reset(){segs.forEach(g=>scene.remove(g));segs=[];[...obs.map(o=>o.m),...coinsA,...parts.map(p=>p.m),...rocks.map(r=>r.mk)].forEach(m=>scene.remove(m));obs=[];coinsA=[];parts=[];rocks=[];
- runCoins=0;dist=0;runT=0;recT=0;rec=[];gap=30;inv=0;slowT=0;boostT=0;magT=0;shake=0;evT=16;nextZ=-35;storyIdx=-1;won=false;lastB=null;dashT=phaseT=dblT=abCd=0;weather=0;wT=40;boss=0;bossDone=-1;rain.visible=false;heli.visible=false;curGhost=null;
+ runCoins=0;dist=0;runT=0;recT=0;rec=[];gap=30;inv=0;slowT=0;boostT=0;magT=0;shake=0;evT=16;nextZ=-35;storyIdx=-1;won=false;lastB=null;dashT=phaseT=dblT=abCd=0;weather=0;wT=40;boss=0;bossDone=-1;rain.visible=false;heli.visible=false;curGhost=null;ph={j:0,s:0,c:[0,0,0]};habit=null;anT=12;trapT=8;$('pred').textContent='🐆 Хищник изучает тебя…';
  pos.set(0,0,0);laneTarget=1;jump=0;slide=0;player.position.set(0,0,0);player.scale.set(1,1,1);player.visible=true;car.visible=false;
  scene.background.copy(B[0].c);scene.fog.color.copy(B[0].c);scene.fog.near=35;scene.fog.far=145;hemi.intensity=2;
  for(let i=0;i<7;i++){const g=new THREE.Group();g.position.z=-i*30;scene.add(g);build(g);segs.push(g)}updateHud()}
@@ -190,7 +204,7 @@ function event(){const r=(R()*3)|0;
 // ---------- управление ----------
 function action(a){if(!active||paused)return;
  if(a==='left'||a==='right'){laneTarget=Math.max(0,Math.min(2,laneTarget+(a==='left'?-1:1)));$('turn').textContent=['Левая полоса','Центральная полоса','Правая полоса'][laneTarget]}
- if(a==='jump'&&jump===0&&slide<=0)jump=.001;if(a==='slide'&&jump===0)slide=.7}
+ if(a==='jump'&&jump===0&&slide<=0){jump=.001;ph.j++}if(a==='slide'&&jump===0){slide=.7;ph.s++}}
 addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(k===' ')e.preventDefault();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
  if(k==='arrowleft'||k==='a')action('left');if(k==='arrowright'||k==='d')action('right');if(k==='arrowup'||k==='w'||k===' ')action('jump');if(k==='arrowdown'||k==='s')action('slide');if(k==='e'||k==='shift')useAbility()});
 let sx=0,sy=0;addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
@@ -214,6 +228,8 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last
   if(boss>0){boss-=dt;bossFire-=dt;heli.position.set(pos.x*.5+Math.sin(runT)*3,9,pos.z-28);heli.children[1].rotation.y+=dt*30;if(bossFire<=0){bossFire=1.1;addRock((R()*3)|0)}
    if(boss<=0){heli.visible=false;score+=20;runCoins+=20;banner('✅ Вертолёт отстал! +20 🪙');updateHud()}}
   while(nextZ>pos.z-170)spawn();
+  anT-=dt;if(anT<=0){anT=10;analyze()}
+  if(habit){trapT-=dt;if(trapT<=0){trapT=dist>1500?4.5:6.5;trap()}}
   const wind=cur.wind?Math.sin(runT*.8)*1.0:0;
   pos.x+=(laneX[laneTarget]+wind-pos.x)*Math.min(1,dt*cur.lerp*(weather?.7:1));
   player.position.x=pos.x;player.position.z=pos.z;
@@ -227,7 +243,7 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last
   // монеты
   for(let i=coinsA.length-1;i>=0;i--){const c=coinsA[i];c.rotation.y+=dt*3;
    if(magT>0&&Math.hypot(c.position.x-pos.x,c.position.z-pos.z)<10){const v=new THREE.Vector3(pos.x,1.2,pos.z).sub(c.position).normalize().multiplyScalar(22*dt);c.position.add(v)}
-   if(Math.abs(c.position.x-pos.x)<(hasPet?2.6:1.35)&&Math.abs(c.position.z-pos.z)<1.45){scene.remove(c);coinsA.splice(i,1);{const v=cur.cv*(boostT>0||dblT>0?2:1);score+=v;runCoins+=v;qAdd('coin',v);sfx('coin')}gap=Math.min(45,gap+.4);updateHud()}
+   if(Math.abs(c.position.x-pos.x)<(hasPet?2.6:1.35)&&Math.abs(c.position.z-pos.z)<1.45){scene.remove(c);coinsA.splice(i,1);{const v=cur.cv*(boostT>0||dblT>0?2:1);score+=v;runCoins+=v;qAdd('coin',v);ph.c[laneTarget]++;sfx('coin')}gap=Math.min(45,gap+.4);updateHud()}
    else if(c.position.z>pos.z+12){scene.remove(c);coinsA.splice(i,1)}}
   // метки обвала
   for(let i=rocks.length-1;i>=0;i--){const r=rocks[i];r.t-=dt;r.mk.visible=Math.floor(r.t*8)%2===0;
@@ -239,6 +255,7 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last
    if(Math.abs(o.m.position.x-pos.x)<1.15&&Math.abs(o.m.position.z-pos.z)<1.2){
     if((o.type==='crate'&&slide>0)||dashT>0){smash(o);continue}
     if(phaseT>0)continue;
+    if(o.type==='beam'){if(slide<=0)hurt('🪤 Ловушка сверху! Нужен подкат');continue}
     if(player.position.y>o.h-.1&&o.type!=='wall')continue;
     hurt(o.type==='wall'?'💥 Стена! Погоня ближе':'💥 Ты споткнулся! Погоня ближе')}}
   // частицы
