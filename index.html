@@ -16,8 +16,9 @@ button{background:#ffb52e;border:0;border-radius:12px;padding:13px 24px;font-siz
 #abil{position:fixed;right:12px;bottom:62px;z-index:3;width:84px;height:84px;border-radius:50%;padding:4px;font-size:12px;line-height:1.15;margin:0;box-shadow:0 0 14px #ffb52e}
 #vig{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 120px 30px #f00;opacity:0;z-index:1}
 .bs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}.bs button{margin:0;padding:10px 6px;font-size:14px}.bs button:last-child:nth-child(odd){grid-column:1/-1}
-@media(max-width:600px){.panel{padding:14px;margin:8px;max-width:330px;max-height:94vh;overflow:auto;border-radius:16px}.panel h1{font-size:19px;margin:0 0 6px}.panel p{font-size:12.5px;margin:6px 0}.panel small{font-size:11px}.bs{gap:5px;margin-top:8px}.bs button{padding:8px 4px;font-size:13px;border-radius:10px}#wheel{max-width:170px!important}}
+@media(max-width:600px){.panel{padding:14px;margin:8px;max-width:330px;max-height:94vh;overflow:auto;border-radius:16px}.panel h1{font-size:19px;margin:0 0 6px}.panel p{font-size:12.5px;margin:6px 0}.panel small{font-size:11px}.bs{gap:5px;margin-top:8px}.bs button{padding:8px 4px;font-size:13px;border-radius:10px}.wh{width:180px;height:180px}}
 #buffs{position:fixed;left:12px;bottom:62px;z-index:2;color:#fff;font-weight:700;font-size:16px;text-shadow:0 2px 5px #000;background:#0007;border-radius:10px;padding:4px 10px;display:none}
+.wh{position:relative;width:210px;height:210px;margin:18px auto 8px}.wh canvas{width:100%;height:100%;display:block}.wh i{position:absolute;left:50%;top:-20px;transform:translateX(-50%);font-style:normal;font-size:24px;line-height:1;z-index:1}
 </style></head><body>
 <div id="hud">🪙 <span id="coins">0</span><br>🏁 <span id="distance">0</span> м<br>💎 <span id="shards">0</span> 💖 <span id="rev">0</span><br><span id="rule" style="font-size:12px;font-weight:400"></span><br><button id="shopOpen" style="padding:7px 12px;font-size:14px;margin-top:7px">Магазин</button></div>
 <div id="turn">Беги вперёд!</div><div id="chase"><i id="chaseBar"></i><b id="chaseTxt"></b></div><div id="banner"></div><div id="pred"></div><div id="story"></div><div id="vig"></div><div id="buffs"></div><button id="abil">⚡</button>
@@ -30,13 +31,14 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
 const $=id=>document.getElementById(id),R=Math.random;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x87b9d8);scene.fog=new THREE.Fog(0x87b9d8,35,145);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,250);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);
+const renderer=new THREE.WebGLRenderer({antialias:devicePixelRatio<2,powerPreference:'high-performance'});const prMax=Math.min(devicePixelRatio,1.5);let pr=prMax,fa=0,fc=0;renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight);const cv=new THREE.Vector3();document.body.appendChild(renderer.domElement);
 const hemi=new THREE.HemisphereLight(0xffffff,0x53606a,2);scene.add(hemi);const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(-15,30,20);scene.add(sun);
 // кэш материалов и геометрий (сцена не течёт при пересборке)
 const M={},G={};
-const mat=(c,basic)=>{const k=c+(basic?'b':'');return M[k]||(M[k]=basic?new THREE.MeshBasicMaterial({color:c}):new THREE.MeshStandardMaterial({color:c,roughness:.85}))};
+const mat=(c,basic)=>{const k=c+(basic?'b':'');return M[k]||(M[k]=basic?new THREE.MeshBasicMaterial({color:c}):new THREE.MeshLambertMaterial({color:c}))};
 const bg=(w,h,d)=>{const k=w+'_'+h+'_'+d;return G[k]||(G[k]=new THREE.BoxGeometry(w,h,d))};
-function box(p,w,h,d,m,x,y,z){const o=new THREE.Mesh(bg(w,h,d),m);o.position.set(x,y,z);p.add(o);return o}
+let batch=null;
+function box(p,w,h,d,m,x,y,z){if(batch&&p===batch.g){batch.l.push([bg(w,h,d),m,x,y,z,1,1,1]);return}const o=new THREE.Mesh(bg(w,h,d),m);o.position.set(x,y,z);p.add(o);return o}
 function figure(sh,sk,pa,ac,st){const g=new THREE.Group(),L=[],A=[];
  box(g,.7,.9,.4,sh,0,1.3,0);box(g,.74,.14,.44,ac,0,.88,0);box(g,.5,.5,.46,sk,0,2,0);
  for(const x of[-.19,.19]){const p=new THREE.Group();p.position.set(x,.88,0);box(p,.22,.85,.24,pa,0,-.43,0);box(p,.26,.14,.34,ac,0,-.8,-.05);g.add(p);L.push(p)}
@@ -62,28 +64,55 @@ B.forEach(b=>b.c=new THREE.Color(b.sky));
 const HB1={n:'💠 Сердце города (ивент)',type:'heart',sky:0x0b2a3a,fog:[20,100],road:0x10303c,side:0x1d5568,bld:[0x14485a,0x1a6a78,0x0f3a4a],obs:0x2ff0ff,light:1.6,rule:'💠 гемы лежат гуще',lerp:12,wind:0,cv:1},
 HB2={n:'💠 Сердце города',type:'heart',sky:0x2a1240,fog:[25,115],road:0x1c1230,side:0x3d2a5e,bld:[0x3a2060,0x502a7a,0x2e1a52],obs:0xff7ad9,light:1.8,rule:'💎 гемы лежат гуще · монеты ×1.5',lerp:12,wind:0,cv:1.5};
 HB1.c=new THREE.Color(HB1.sky);HB2.c=new THREE.Color(HB2.sky);
+const EX=[{gnd:0x4a5a45,sun:0xfff2c0},{gnd:0xd9b878,sun:0xfff0b0,amb:{c:0xe8c690,vx:9,vy:0,s:.1}},{gnd:0xeef4f8,sun:0xffffff,amb:{c:0xffffff,vx:.5,vy:-3,s:.16}},{gnd:0x1a1426,sun:0xe8e8ff,amb:{c:0xff5ad0,vx:0,vy:1.5,s:.12},st:1},{gnd:0x6d7378,sun:0xfff0d0},{gnd:0x3a2c2a,sun:0xffb36b}];
+B.forEach((b,i)=>Object.assign(b,EX[i]));Object.assign(HB1,{gnd:0x0a2230,sun:0x9ffcff,amb:{c:0x2ff0ff,vx:0,vy:1.2,s:.14},st:1});Object.assign(HB2,{gnd:0x1a0f2c,sun:0xffb0ea,amb:{c:0xff7ad9,vx:0,vy:1.2,s:.14},st:1});
+[...B,HB1,HB2].forEach(b=>b.sc=new THREE.Color(b.sun));
+const sunM=new THREE.Mesh(new THREE.SphereGeometry(12,16,12),new THREE.MeshBasicMaterial({color:0xfff2c0,fog:false}));scene.add(sunM);
+const stG=new THREE.BufferGeometry(),stp=new Float32Array(450);for(let i=0;i<450;i+=3){const a=R()*6.28;stp[i]=Math.cos(a)*200;stp[i+1]=20+R()*120;stp[i+2]=Math.sin(a)*200}
+stG.setAttribute('position',new THREE.BufferAttribute(stp,3));const skyStars=new THREE.Points(stG,new THREE.PointsMaterial({color:0xffffff,size:2,sizeAttenuation:false,fog:false}));skyStars.frustumCulled=false;skyStars.visible=false;scene.add(skyStars);
+const ambG=new THREE.BufferGeometry(),ap=new Float32Array(600);for(let i=0;i<600;i+=3){ap[i]=(R()-.5)*32;ap[i+1]=R()*12;ap[i+2]=-R()*40+6}
+ambG.setAttribute('position',new THREE.BufferAttribute(ap,3));const amb=new THREE.Points(ambG,new THREE.PointsMaterial({color:0xffffff,size:.12}));amb.frustumCulled=false;amb.visible=false;scene.add(amb);let curSp=0;
 let locMode=localStorage.getItem('crLoc')||'city';
 const biomeAt=d=>locMode==='heart'?(evActive()?HB1:HB2):B[Math.floor(Math.max(0,d)/500)%B.length],NEON=[0xff2fa0,0x2ff0ff,0xb36bff,0xffe14a];
+const cone=()=>G.cone||(G.cone=new THREE.ConeGeometry(2,6,7)),cone2=()=>G.cone2||(G.cone2=new THREE.ConeGeometry(.9,1.6,7));
+function bm(geo,m,x,y,z,sx=1,sy=1,sz=1){batch.l.push([geo,m,x,y,z,sx,sy,sz])}
+function flush(g){const by=new Map();
+ for(const[geo,m,x,y,z,sx,sy,sz]of batch.l){let e=by.get(m);if(!e)by.set(m,e={p:[],n:[],i:[],c:0});const pa=geo.attributes.position.array,na=geo.attributes.normal.array,ia=geo.index?geo.index.array:null,cnt=pa.length/3;
+  for(let k=0;k<pa.length;k+=3){e.p.push(pa[k]*sx+x,pa[k+1]*sy+y,pa[k+2]*sz+z);e.n.push(na[k],na[k+1],na[k+2])}
+  if(ia)for(let k=0;k<ia.length;k++)e.i.push(ia[k]+e.c);else for(let k=0;k<cnt;k++)e.i.push(k+e.c);e.c+=cnt}
+ for(const[m,e]of by){const gm=new THREE.BufferGeometry();gm.setAttribute('position',new THREE.Float32BufferAttribute(e.p,3));gm.setAttribute('normal',new THREE.Float32BufferAttribute(e.n,3));gm.setIndex(e.i);g.add(new THREE.Mesh(gm,m))}}
 function build(g){
- while(g.children.length)g.remove(g.children[0]);
- const b=biomeAt(-g.position.z-15),ne=b.type==='neon'||b.type==='heart';
- box(g,9,.18,30,mat(b.road),0,-.12,-15);
- for(const s of[-1,1])box(g,1.5,.22,30,mat(b.side),s*5.25,-.08,-15);
- for(let i=0;i<8;i++)box(g,.12,.03,1.6,mat(ne?0x2ff0ff:0xf4e7bf,ne),0,0,-i*4-1);
+ while(g.children.length){const c=g.children[0];g.remove(c);if(c.geometry)c.geometry.dispose()}batch={g,l:[]};
+ const b=biomeAt(-g.position.z-15),ty=b.type,ne=ty==='neon'||ty==='heart',gl=ty==='heart'?(evActive()?0x2ff0ff:0xff7ad9):0x2ff0ff,ln=mat(ne?gl:0xf4e7bf,ne);
+ box(g,90,.1,30,mat(b.gnd),0,-.3,-15);box(g,9,.18,30,mat(b.road),0,-.12,-15);
+ if(ty==='port')for(const s of[-1,1])box(g,30,.1,30,mat(0x2f6f9a),s*37,-.2,-15);
+ for(const s of[-1,1]){box(g,1.5,.22,30,mat(b.side),s*5.25,-.08,-15);box(g,.25,.3,30,mat(0xcfcfcf),s*4.55,-.02,-15);box(g,.1,.03,30,ln,s*4.2,0,-15)}
+ for(let i=0;i<8;i++)box(g,.12,.03,1.6,ln,0,0,-i*4-1);
+ if(ty!=='desert')for(const s of[-1,1])for(const z of[-7,-22]){const dk=mat(0x2b2f36);box(g,.15,4.6,.15,dk,s*4.9,2.3,z);box(g,.9,.12,.12,dk,s*4.5,4.6,z);box(g,.5,.14,.4,mat(ne?gl:0xffe9a8,true),s*4.1,4.5,z)}
+ if(ty==='snow'&&R()<.8)box(g,2.4,.03,4,mat(0xcdeeff),laneX[(R()*3)|0],.01,-R()*24-3);
+ if(ty==='heart'){const a=mat(gl,true);box(g,.4,7,.4,a,-4.7,3.5,-15);box(g,.4,7,.4,a,4.7,3.5,-15);box(g,9.8,.4,.4,a,0,7,-15)}
+ for(const s of[-1,1])for(let i=0;i<2;i++){const x=s*(30+R()*12),z=-i*15-8,h=16+(R()*18|0);
+  if(ty==='snow'){const sx=5+R()*3,sy=4+R()*3;bm(cone(),mat(0x8fa6b8),x,3*sy,z,sx,sy,sx);bm(cone(),mat(0xffffff),x,4.8*sy,z,sx*.4,sy*.4,sx*.4)}
+  else if(ty==='desert'){box(g,14,h*.5,12,mat(0xb5683c),x,h*.25,z);box(g,14.2,2,12.2,mat(0xd98b55),x,h*.5-1,z)}
+  else if(ty==='port'){const o=mat(0xe08a1e);box(g,1.2,26,1.2,o,x,13,z);box(g,18,1,1,o,x-s*8,26,z)}
+  else if(ty==='heart'){bm(shG,mat(gl,true),x,10,z,3,10,3)}
+  else{box(g,8,h,8,mat(ne?0x120d24:ty==='roof'?0x7a5a50:0x7b8794),x,h/2,z);if(ne)for(let y=4;y<h;y+=5)box(g,8.2,.4,8.2,mat(NEON[(R()*4)|0],true),x,y,z)}}
  for(const s of[-1,1])for(let i=0;i<3;i++){
   const x=s*(8+i*5),z=-i*10-8,col=b.bld[(R()*b.bld.length)|0];
-  if(b.type==='desert'){const h=3+(R()*6|0);box(g,4+(R()*3|0),h,5,mat(col),x,h/2,z);
+  if(ty==='desert'){const h=3+(R()*6|0);box(g,4+(R()*3|0),h,5,mat(col),x,h/2,z);box(g,10,1.6,16,mat(0xd0a766),s*(18+R()*8),.5,z);
    if(R()<.7){const cx=s*(6.6+(R()*2|0)),cz=z+5,gm=mat(0x3f7d43);box(g,.5,2.4,.5,gm,cx,1.2,cz);box(g,.9,.35,.35,gm,cx-s*.6,1.7,cz)}}
-  else if(b.type==='heart'){const h=6+(R()*8|0),gl=evActive()?0x2ff0ff:0xff7ad9;box(g,2,h,2,mat(col),x,h/2,z);const c=new THREE.Mesh(shG,mat(gl,true));c.scale.set(1.6,3.2,1.6);c.position.set(x,h+2,z);g.add(c);box(g,.12,h,.12,mat(gl,true),x-s*1.05,h/2,z)}
-  else if(b.type==='port'){for(let j=0,n=1+(R()*3|0);j<n;j++)box(g,4,2.6,8,mat(col),x,1.3+j*2.6,z)}
-  else if(b.type==='snow'){box(g,.5,1.5,.5,mat(0x5b3b22),x,.75,z);const c=new THREE.Mesh(G.cone||(G.cone=new THREE.ConeGeometry(2,6,7)),mat(0x2f6b45));c.position.set(x,4,z);g.add(c);
-   const sn=new THREE.Mesh(G.cone2||(G.cone2=new THREE.ConeGeometry(.9,1.6,7)),mat(0xffffff));sn.position.set(x,6.3,z);g.add(sn)}
-  else{const rf=b.type==='roof',h=(rf?3:7)+(R()*(rf?6:16)|0),w=3+(R()*3|0),d=4+(R()*4|0);box(g,w,h,d,mat(col),x,h/2-.1,z);
-   if(ne)box(g,.14,Math.round(h*.8),.4,mat(NEON[(R()*4)|0],true),x-s*(w/2+.07),h*.45,z+d/2-.6);
-   else box(g,.1,Math.round(h*.7),Math.round(d*.8),mat(0x83c5d8),x-s*(w/2+.05),h*.45,z)}
- }}
+  else if(ty==='heart'){const h=6+(R()*8|0);box(g,2,h,2,mat(col),x,h/2,z);bm(shG,mat(gl,true),x,h+2,z,1.6,3.2,1.6);box(g,.12,h,.12,mat(gl,true),x-s*1.05,h/2,z)}
+  else if(ty==='port'){for(let j=0,n=1+(R()*3|0);j<n;j++)box(g,4,2.6,8,mat(col),x,1.3+j*2.6,z)}
+  else if(ty==='snow'){box(g,.5,1.5,.5,mat(0x5b3b22),x,.75,z);bm(cone(),mat(0x2f6b45),x,4,z);bm(cone2(),mat(0xffffff),x,6.3,z);box(g,4,1,8,mat(0xffffff),s*(12+R()*3),.2,z+4)}
+  else{const rf=ty==='roof',h=(rf?3:7)+(R()*(rf?6:16)|0),w=3+(R()*3|0),d=4+(R()*4|0);box(g,w,h,d,mat(col),x,h/2-.1,z);const fx=x-s*(w/2+.06);
+   for(let y=2;y<Math.min(h-.5,12);y+=3)if(!ne||R()<.75)box(g,.1,1.1,Math.round(d*.8),ne?mat([0xffd27a,0x7ad9ff,0xff7ad9][(R()*3)|0],true):mat(0x83c5d8),fx,y,z);
+   if(ne){box(g,.15,Math.round(h*.8),.4,mat(NEON[(R()*4)|0],true),fx-s*.05,h*.45,z+d/2-.6);if(R()<.6)box(g,.15,2.5,4,mat(NEON[(R()*4)|0],true),fx-s*.1,Math.min(h-2,6),z)}
+   if(rf&&R()<.6){box(g,1.6,1.6,1.6,mat(0x8a6a50),x,h+.8,z);box(g,.1,2.2,.1,mat(0x333333),x+1,h+1.1,z);box(g,.2,.2,.2,mat(0xff3030,true),x+1,h+2.3,z)}
+   if(ty==='city'&&R()<.7){box(g,.3,1.4,.3,mat(0x6b4a2a),s*6.3,.7,z+4);box(g,1.5,1.6,1.5,mat(0x3f8a4a),s*6.3,2,z+4)}}
+ }
+ flush(g);batch=null}
 let segs=[],obs=[],coinsA=[],parts=[],rocks=[];
-const coinGeo=new THREE.TorusGeometry(.38,.12,8,16),goldM=new THREE.MeshStandardMaterial({color:0xffc928,emissive:0x664400});
+const coinGeo=new THREE.TorusGeometry(.38,.12,8,16),goldM=new THREE.MeshLambertMaterial({color:0xffc928,emissive:0x664400});
 const laneX=[-2.7,0,2.7];
 function addCoin(x,z){const c=new THREE.Mesh(coinGeo,goldM);c.position.set(x,1.25,z);scene.add(c);coinsA.push(c)}
 function addObs(type,x,z,b){
@@ -143,7 +172,8 @@ function updGhosts(dt){for(const g of ghosts){let d,x,y=0,ok=true;
 // ---------- сюжет ----------
 const S=['Глава 1 · Кража. Ты вынес «Сердце города» из хранилища корпорации «Ноктюрн». Охрана уже на хвосте!','Глава 2 · Пустыня. Артефакт гудит и нагревается. Дроны «Ноктюрн» ищут тебя с воздуха.','Глава 3 · Перевал. Лёд коварен, но убежище уже близко. Не дай им себя догнать!','Глава 4 · Неон. Последний рывок через квартал «Ноктюрн». Впереди огни убежища!','Глава 5 · Порт. Контейнеры «Ноктюрн» повсюду. Убежище на другой стороне гавани!','Глава 6 · Крыши. Закат и финальный рывок над городом. Ещё немного!'];
 // ---------- интерфейс ----------
-function updateHud(){$('shards').textContent=shards;$('rev').textContent=rev;$('coins').textContent=score;$('distance').textContent=Math.floor(dist);$('shopGems').textContent=shards;$('shopCoins').textContent=score}
+const T=(id,v)=>{const e=$(id);if(e._v!==v){e._v=v;e.textContent=v}};
+function updateHud(){T('shards',shards);T('rev',rev);T('coins',score);T('distance',Math.floor(dist));T('shopGems',shards);T('shopCoins',score)}
 function applySkin(){const s=cs();if(model)player.remove(model);model=figure(mat(s.color),mat(0xf0b98b),mat(0x252c3d),mat(s.acc,true),s.st);player.add(model)}
 let dashT=0,phaseT=0,dblT=0,abCd=0;
 function useAbility(){if(!active||paused||abCd>0)return;const s=cs();const m=1+.15*(up[s.id]||0);abCd=s.cd*(1-.1*(up[s.id]||0));sfx('ab');
@@ -231,17 +261,23 @@ const ghostTxt=()=>'<small>👻 Призраки на трассе: '+ghosts.map
 let best=+localStorage.getItem('crBest')||0;
 function saveAll(){try{localStorage.setItem('crScore',score);localStorage.setItem('crQ',JSON.stringify(Q));localStorage.setItem('crUp',JSON.stringify(up));localStorage.setItem('crPet',hasPet?1:0);localStorage.setItem('crBest',best);localStorage.setItem('crSp',spins);localStorage.setItem('crSh',shards);localStorage.setItem('crRev',rev);localStorage.setItem('crPity',pity)}catch(e){}}
 const back=['← Назад',()=>menu()];
-const VER='v18',LOG=[{"v": "v18", "n": "Журнал обновлений", "t": ["Кнопка «📜 Обновления» в главном меню (красная точка, если есть новое)", "Файл CHANGELOG.md в проекте"]}, {"v": "v17", "n": "Возрождение вручную", "t": ["💖 Возрождение больше не тратится само: при поимке игра спрашивает, возродиться или сдаться", "Если сдаться, возрождения сохраняются"]}, {"v": "v16", "n": "Баффы на карте", "t": ["⚡ Ускоритель, 🛡️ Щит, 🧲 Магнит, ✨ Монеты ×2 лежат на трассе", "Активные баффы с таймерами показаны слева внизу"]}, {"v": "v15", "n": "Призраки", "t": ["Боты обходят препятствия, записанные призраки растворяются внутри препятствий", "В меню можно выключить всех призраков или ботов, отключать и удалять отдельных призраков"]}, {"v": "v14", "n": "Гемы и компактное меню", "t": ["Меню на телефоне стало компактнее, кнопки в две колонки", "💎 Гемы — основная валюта (по 5 за кристалл, падают всегда)", "«Хранитель Сердца» стоит 🪙1200 + 💎1200", "После ивента билеты 🎟 можно обменять (1 = 10 💎) или оставить на следующий ивент"]}, {"v": "v13", "n": "Ивент-локация", "t": ["Локация «Сердце города» (кристальные залы) выбирается в меню", "После ивента остаётся навсегда: другая палитра, монеты ×1.5"]}, {"v": "v12", "n": "Ивент «Колесо Сердца»", "t": ["Ивент на 19 дней, колесо фортуны с призами", "Особый класс «Хранитель Сердца» со способностью «Пульс Сердца»", "Приз «Возрождение» и бесплатные спины"]}, {"v": "v11", "n": "Дрон-помощник", "t": ["Пассивно раз в 10 с летит за монетами и забирает до 5 штук"]}, {"v": "v10", "n": "Классы", "t": ["У персонажей 1–4 ★ в скорости, монетах и перезарядке", "Усиление класса в подходящих районах"]}, {"v": "v9", "n": "Код призрака", "t": ["Код призрака стал в ~14 раз короче, кнопка копирует в буфер"]}, {"v": "v8", "n": "Хищник, который учится", "t": ["Погоня адаптируется к привычкам: балки сверху, низкие барьеры, засады", "Сбить хищника с толку можно сменой стиля игры"]}, {"v": "v7", "n": "Большое обновление", "t": ["Главное меню, 6 районов (+Порт, +Крыши), босс-вертолёт, погода", "Задания дня, прокачка способностей, звук и музыка, призраки друзей"]}, {"v": "v6", "n": "Персонажи", "t": ["Новые модели и анимация бега", "Особые способности у каждого персонажа (клавиша E)"]}, {"v": "v5", "n": "Живой мир и сюжет", "t": ["Биомы с разными правилами, разрушаемые ящики, случайные события", "Сюжет с погоней и призраки прошлых забегов"]}];
+const VER='v22',LOG=[{"v":"v22","n":"Шансы колеса","t":["Рядом с колесом фортуны появился знак «?» со списком шансов выпадения призов"]},{"v":"v21","n":"Коды","t":["Кнопка «🎁 Коды» в главном меню: каждый код активируется один раз","Новый код: UPDATE"]},{"v":"v20","n":"Оптимизация FPS","t":["Сцена районов склеивается в несколько объектов: в разы меньше вызовов отрисовки","Более лёгкие материалы и меньше выделений памяти в каждом кадре","Разрешение само снижается, если FPS низкий","Реже обновляется интерфейс"]},{"v":"v19","n":"Красивые биомы","t":["Земля до горизонта, бордюры, разметка и фонари в каждом районе","Дальний план: горы, мезы, небоскрёбы, краны порта, кристальные шпили","Окна и вывески, деревья, дюны, сугробы и лёд, арки в «Сердце города»","Солнце или луна, звёзды ночью, частицы: снег, песок, неоновые искры"]},{"v": "v18", "n": "Журнал обновлений", "t": ["Кнопка «📜 Обновления» в главном меню (красная точка, если есть новое)", "Файл CHANGELOG.md в проекте"]}, {"v": "v17", "n": "Возрождение вручную", "t": ["💖 Возрождение больше не тратится само: при поимке игра спрашивает, возродиться или сдаться", "Если сдаться, возрождения сохраняются"]}, {"v": "v16", "n": "Баффы на карте", "t": ["⚡ Ускоритель, 🛡️ Щит, 🧲 Магнит, ✨ Монеты ×2 лежат на трассе", "Активные баффы с таймерами показаны слева внизу"]}, {"v": "v15", "n": "Призраки", "t": ["Боты обходят препятствия, записанные призраки растворяются внутри препятствий", "В меню можно выключить всех призраков или ботов, отключать и удалять отдельных призраков"]}, {"v": "v14", "n": "Гемы и компактное меню", "t": ["Меню на телефоне стало компактнее, кнопки в две колонки", "💎 Гемы — основная валюта (по 5 за кристалл, падают всегда)", "«Хранитель Сердца» стоит 🪙1200 + 💎1200", "После ивента билеты 🎟 можно обменять (1 = 10 💎) или оставить на следующий ивент"]}, {"v": "v13", "n": "Ивент-локация", "t": ["Локация «Сердце города» (кристальные залы) выбирается в меню", "После ивента остаётся навсегда: другая палитра, монеты ×1.5"]}, {"v": "v12", "n": "Ивент «Колесо Сердца»", "t": ["Ивент на 19 дней, колесо фортуны с призами", "Особый класс «Хранитель Сердца» со способностью «Пульс Сердца»", "Приз «Возрождение» и бесплатные спины"]}, {"v": "v11", "n": "Дрон-помощник", "t": ["Пассивно раз в 10 с летит за монетами и забирает до 5 штук"]}, {"v": "v10", "n": "Классы", "t": ["У персонажей 1–4 ★ в скорости, монетах и перезарядке", "Усиление класса в подходящих районах"]}, {"v": "v9", "n": "Код призрака", "t": ["Код призрака стал в ~14 раз короче, кнопка копирует в буфер"]}, {"v": "v8", "n": "Хищник, который учится", "t": ["Погоня адаптируется к привычкам: балки сверху, низкие барьеры, засады", "Сбить хищника с толку можно сменой стиля игры"]}, {"v": "v7", "n": "Большое обновление", "t": ["Главное меню, 6 районов (+Порт, +Крыши), босс-вертолёт, погода", "Задания дня, прокачка способностей, звук и музыка, призраки друзей"]}, {"v": "v6", "n": "Персонажи", "t": ["Новые модели и анимация бега", "Особые способности у каждого персонажа (клавиша E)"]}, {"v": "v5", "n": "Живой мир и сюжет", "t": ["Биомы с разными правилами, разрушаемые ящики, случайные события", "Сюжет с погоней и призраки прошлых забегов"]}];
 function updates(){localStorage.setItem('crSeen',VER);panel('<h1>📜 Обновления</h1><div style="text-align:left;font-size:12.5px;max-height:55vh;overflow:auto">'+LOG.map(e=>'<b>'+e.v+' · '+e.n+'</b>'+e.t.map(x=>'<br>• '+x).join('')).join('<br><br>')+'</div>',[back])}
-function menu(){panel('<h1>🏃 CITY RUNNER 3D</h1><p>Беги с артефактом «Сердце города» до убежища (3000 м)!</p><p><small>💎 '+shards+' · 🪙 '+score+' · Рекорд: '+best+' м · '+VER+'<br>'+cs().name+' · 🏃'+stars(cs().sp)+' 🪙'+stars(cs().cn)+' ⏱'+stars(cs().cr)+'</small></p>',[['▶ Играть',begin],['📍 '+(locMode==='heart'?'💠 Сердце':'🏙️ Районы'),()=>{locMode=locMode==='heart'?'city':'heart';localStorage.setItem('crLoc',locMode);reset();menu()}],['🎡 Ивент'+(evActive()?' · '+evDays()+' дн.':''),eventMenu],['👤 Классы',shopOpen],['📋 Задания',quests],['👻 Призраки',ghostMenu],['📖 Сюжет',lore],['📜 Обновления'+(localStorage.getItem('crSeen')!==VER?' 🔴':''),updates],['🔊 '+(sound?'Звук вкл':'Звук выкл'),()=>{sound=!sound;localStorage.setItem('crSnd',sound?1:0);menu()}]])}
+const CODES={UPDATE:{t:'🪙500 + 💎100 + 🎟1 спин',f:()=>{score+=500;shards+=100;spins+=1}}};
+let usedCodes=[];try{usedCodes=JSON.parse(localStorage.getItem('crCodes'))||[]}catch(e){}
+function codesMenu(msg){panel('<h1>🎁 Коды</h1><p><small>Введи промокод и получи награду. Каждый код активируется один раз.</small></p><input id="cin" placeholder="КОД" maxlength="24" autocomplete="off" autocapitalize="characters" style="width:100%;padding:10px;font-size:16px;border-radius:10px;border:0;text-align:center;text-transform:uppercase">'+(msg?'<p><b>'+msg+'</b></p>':''),[['✅ Активировать',redeem],back])}
+function redeem(){const v=($('cin').value||'').trim().toUpperCase();if(!v)return codesMenu('Введи код');const c=CODES[v];if(!c)return codesMenu('❌ Такого кода нет');if(usedCodes.includes(v))return codesMenu('Этот код уже активирован');usedCodes.push(v);try{localStorage.setItem('crCodes',JSON.stringify(usedCodes))}catch(e){}c.f();saveAll();updateHud();sfx('q');codesMenu('🎉 Код принят: '+c.t)}
+function menu(){panel('<h1>🏃 CITY RUNNER 3D</h1><p>Беги с артефактом «Сердце города» до убежища (3000 м)!</p><p><small>💎 '+shards+' · 🪙 '+score+' · Рекорд: '+best+' м · '+VER+'<br>'+cs().name+' · 🏃'+stars(cs().sp)+' 🪙'+stars(cs().cn)+' ⏱'+stars(cs().cr)+'</small></p>',[['▶ Играть',begin],['📍 '+(locMode==='heart'?'💠 Сердце':'🏙️ Районы'),()=>{locMode=locMode==='heart'?'city':'heart';localStorage.setItem('crLoc',locMode);reset();menu()}],['🎡 Ивент'+(evActive()?' · '+evDays()+' дн.':''),eventMenu],['👤 Классы',shopOpen],['📋 Задания',quests],['👻 Призраки',ghostMenu],['📖 Сюжет',lore],['🎁 Коды',codesMenu],['📜 Обновления'+(localStorage.getItem('crSeen')!==VER?' 🔴':''),updates],['🔊 '+(sound?'Звук вкл':'Звук выкл'),()=>{sound=!sound;localStorage.setItem('crSnd',sound?1:0);menu()}]])}
 function quests(){panel('<h1>📋 Задания дня</h1><p style="text-align:left">'+QD.map(q=>(Q.done.includes(q.k)?'✅ ':'⬜ ')+q.t+' — '+Math.min(q.n,Math.floor(Q.p[q.k]))+'/'+q.n+' (+'+q.r+' 🪙)').join('<br>')+'</p>',[back])}
 function lore(){panel('<h1>📖 Сюжет</h1><p style="text-align:left;font-size:13px">'+S.join('<br><br>')+'</p>',[back])}
 const AL='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_',cl=(v)=>Math.max(0,Math.min(63,Math.round(v)));
 const lerpS=(s,i,o)=>{const n=s.length/3-1,a=Math.min(Math.floor(i),n),b=Math.min(a+1,n);return s[a*3+o]+(s[b*3+o]-s[a*3+o])*(i-Math.floor(i))};
 function enc(s){let r='',pq=0;for(let k=0,n=Math.floor((s.length/3-1)/2.5);k<=n;k++){const i=k*2.5,q=Math.round(lerpS(s,i,0)*4),dq=cl(q-pq);pq+=dq;r+=AL[dq]+AL[cl((lerpS(s,i,1)+4)*7.5)]+AL[cl(lerpS(s,i,2)*30)]}return r}
 function dec(t){const o=[];let q=0;for(let i=0;i+2<t.length;i+=3){q+=AL.indexOf(t[i]);o.push(q/4,AL.indexOf(t[i+1])/7.5-4,AL.indexOf(t[i+2])/30)}const r=[],n=o.length/3-1;for(let j=0;j*.4<=n;j++)r.push(lerpS(o,j*.4,0),lerpS(o,j*.4,1),lerpS(o,j*.4,2));return r}
+const WN=['🪙 250 монет','🎟 +3 спина','🌟 Особый класс «Хранитель Сердца»','💖 Возрождение','💎 75 гемов','🪙 60 монет','🪙 100 монет','🎟 +1 спин'];
+function oddsMenu(){if(spinning)return;const sum=WP.reduce((a,p)=>a+p.w,0);panel('<h1>🎡 Шансы призов</h1><p style="text-align:left;font-size:13px">'+WP.map((p,i)=>WN[i]+' — <b>'+(p.w/sum*100).toFixed(1)+'%</b>').join('<br>')+'</p><p><small>Гарантия: если класс не выпадал 29 спинов подряд, 30-й спин даёт его. Сейчас без класса: '+pity+'. Если класс уже есть, вместо него дают 🪙400.</small></p>',[['← К колесу',()=>eventMenu()]])}
 function eventMenu(msg){if(spinning)return;const on=evActive();
- panel('<h1>🎡 Колесо Сердца</h1><p><small>'+(on?'Ивент идёт ещё '+evDays()+' дн. Главный приз — особый класс «Хранитель Сердца»; после ивента он появится в магазине. Гемы 💎 (по 5) лежат на трассе.':'Ивент завершён. «Хранитель Сердца» в магазине: 🪙1200 + 💎1200. Билетов 🎟 '+spins+': обменяй (1 = 10 💎) или оставь до следующего ивента.')+'</small></p>'+(on?'<div style="font-size:24px;line-height:1">🔻</div><canvas id="wheel" width="250" height="250" style="max-width:100%"></canvas>':'')+(msg?'<p><b>'+msg+'</b></p>':'')+'<p><small>🪙 '+score+' · 💎 '+shards+' · 🎟 '+spins+' · 💖 '+rev+'</small></p>',on?[...(spins>0?[['🎰 Крутить (🎟 '+spins+')',()=>spin('free')]]:[]),['🎰 За 🪙120',()=>spin('coin')],['🎰 За 💎40',()=>spin('shard')],back]:[...(spins>0?[['💱 Обменять 🎟'+spins+' → 💎'+spins*10,()=>{const n=spins;shards+=n*10;spins=0;saveAll();updateHud();eventMenu('Обмен: '+n+' 🎟 → 💎'+n*10)}]]:[]),back]);drawWheel()}
+ panel('<h1>🎡 Колесо Сердца</h1><p><small>'+(on?'Ивент идёт ещё '+evDays()+' дн. Главный приз — особый класс «Хранитель Сердца»; после ивента он появится в магазине. Гемы 💎 (по 5) лежат на трассе.':'Ивент завершён. «Хранитель Сердца» в магазине: 🪙1200 + 💎1200. Билетов 🎟 '+spins+': обменяй (1 = 10 💎) или оставь до следующего ивента.')+'</small></p>'+(on?'<div class="wh"><i>🔻</i><canvas id="wheel" width="250" height="250"></canvas><button id="wq" style="position:absolute;right:-38px;top:-6px;width:30px;height:30px;border-radius:50%;padding:0;margin:0;font-size:17px;line-height:30px">?</button></div>':'')+(msg?'<p><b>'+msg+'</b></p>':'')+'<p><small>🪙 '+score+' · 💎 '+shards+' · 🎟 '+spins+' · 💖 '+rev+'</small></p>',on?[...(spins>0?[['🎰 Крутить (🎟 '+spins+')',()=>spin('free')]]:[]),['🎰 За 🪙120',()=>spin('coin')],['🎰 За 💎40',()=>spin('shard')],back]:[...(spins>0?[['💱 Обменять 🎟'+spins+' → 💎'+spins*10,()=>{const n=spins;shards+=n*10;spins=0;saveAll();updateHud();eventMenu('Обмен: '+n+' 🎟 → 💎'+n*10)}]]:[]),back]);drawWheel();if($('wq'))$('wq').onclick=oddsMenu}
 function ghostMenu(){const b=[['👻 Призраки: '+(ghostOn?'вкл':'выкл'),()=>{ghostOn=!ghostOn;localStorage.setItem('crGhostOn',ghostOn?1:0);setupGhosts();ghostMenu()}],['🤖 Боты: '+(botsOn?'вкл':'выкл'),()=>{botsOn=!botsOn;localStorage.setItem('crBots',botsOn?1:0);setupGhosts();ghostMenu()}]];
  saved.forEach(x=>b.push([(x.off?'🚫 ':'✅ ')+x.n+' · '+x.d+' м',()=>{x.off=!x.off;trim();ghostMenu()}],['🗑 Удалить',()=>{if(confirm('Удалить призрака «'+x.n+'»?')){saved=saved.filter(y=>y!==x);if(curGhost===x)curGhost=null;trim();ghostMenu()}}]));
  b.push(['📤 Копировать мой',()=>{const m=saved.find(x=>!x.fr);if(!m)return alert('Сначала пробеги забег');const code=Math.floor(m.d)+'.'+enc(m.s);navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(code).then(()=>alert('Код скопирован ('+code.length+' симв.). Отправь его другу!'),()=>prompt('Скопируй код:',code)):prompt('Скопируй код:',code)}],['📥 Импорт друга',()=>{const c=prompt('Вставь код призрака:');if(!c)return;try{const[d,t]=c.trim().split('.');if(!/^\d+$/.test(d)||!/^[A-Za-z0-9_-]+$/.test(t)||t.length%3||t.length>3600)throw 0;saved.push({n:(prompt('Имя друга?')||'Друг').slice(0,14),d:+d,s:dec(t),fr:1});trim();ghostMenu()}catch(e){alert('Неверный код')}}],back);
@@ -266,7 +302,7 @@ function event(){const r=(R()*3)|0;
 function action(a){if(!active||paused)return;
  if(a==='left'||a==='right'){laneTarget=Math.max(0,Math.min(2,laneTarget+(a==='left'?-1:1)));$('turn').textContent=['Левая полоса','Центральная полоса','Правая полоса'][laneTarget]}
  if(a==='jump'&&jump===0&&slide<=0){jump=.001;ph.j++}if(a==='slide'&&jump===0){slide=.7;ph.s++}}
-addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(k===' ')e.preventDefault();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;const k=e.key.toLowerCase();if(k===' ')e.preventDefault();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
  if(k==='arrowleft'||k==='a')action('left');if(k==='arrowright'||k==='d')action('right');if(k==='arrowup'||k==='w'||k===' ')action('jump');if(k==='arrowdown'||k==='s')action('slide');if(k==='e'||k==='shift')useAbility()});
 let sx=0,sy=0;addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
 addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.max(Math.abs(dx),Math.abs(dy))<25)return;if(Math.abs(dx)>Math.abs(dy))action(dx<0?'left':'right');else action(dy<0?'jump':'slide')},{passive:true});
@@ -274,11 +310,13 @@ addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.cha
 let last=performance.now();
 function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.04);last=now;
  const cur=biomeAt(dist);
- scene.background.lerp(cur.c,Math.min(1,dt*.9));scene.fog.color.copy(scene.background);scene.fog.near+=(cur.fog[0]-scene.fog.near)*dt;scene.fog.far+=(cur.fog[1]*(weather?.75:1)-scene.fog.far)*dt;pet.visible=hasPet;if(hasPet)petUpdate(dt);hemi.intensity+=(cur.light-hemi.intensity)*dt;
+ scene.background.lerp(cur.c,Math.min(1,dt*.9));scene.fog.color.copy(scene.background);scene.fog.near+=(cur.fog[0]-scene.fog.near)*dt;scene.fog.far+=(cur.fog[1]*(weather?.75:1)-scene.fog.far)*dt;pet.visible=hasPet;if(hasPet)petUpdate(dt);
+ sunM.position.set(pos.x*.5,48,pos.z-190);sunM.material.color.lerp(cur.sc,Math.min(1,dt*.9));skyStars.position.set(pos.x,0,pos.z);skyStars.visible=!!cur.st;
+ {const am=cur.amb;amb.visible=!!am;if(am){amb.material.color.setHex(am.c);amb.material.size=am.s;amb.position.set(pos.x,0,pos.z);for(let i=0;i<600;i+=3){ap[i]+=am.vx*dt;ap[i+1]+=am.vy*dt;ap[i+2]+=(active&&!paused?curSp:0)*dt;if(ap[i+1]<0)ap[i+1]+=12;if(ap[i+1]>12)ap[i+1]-=12;if(ap[i]>16)ap[i]-=32;if(ap[i]<-16)ap[i]+=32;if(ap[i+2]>6)ap[i+2]-=40}ambG.attributes.position.needsUpdate=true}}hemi.intensity+=(cur.light-hemi.intensity)*dt;
  if(cur!==lastB){lastB=cur;$('rule').textContent=cur.n+(cur.rule?' · '+cur.rule:'')+(aff()?' · ⭐ класс усилен':'');if(active&&dist>1)banner('📍 '+cur.n+(cur.rule?' — '+cur.rule:'')+(aff()?' ⭐ Класс усилен!':''),4000)}
  if(active&&!paused){
   runT+=dt;slowT-=dt;boostT-=dt;magT-=dt;inv-=dt;dashT-=dt;phaseT-=dt;dblT-=dt;spdT-=dt;shield-=dt;abCd=Math.max(0,abCd-dt*CR[cs().cr-1]*(aff()?1.5:1));shake=Math.max(0,shake-dt);
-  const sp=Math.min(20,13+dist/500)*(slowT>0?.65:1)*(boostT>0?1.25:1)*(dashT>0?1.4:1)*(spdT>0?1.3:1)*(cur.spd||1)*SP[cs().sp-1]*(aff()?1.06:1);dist+=sp*dt;qAdd('dist',sp*dt);pos.z-=sp*dt;gap=Math.min(45,gap+dt*.5);
+  const sp=Math.min(20,13+dist/500)*(slowT>0?.65:1)*(boostT>0?1.25:1)*(dashT>0?1.4:1)*(spdT>0?1.3:1)*(cur.spd||1)*SP[cs().sp-1]*(aff()?1.06:1);curSp=sp;dist+=sp*dt;qAdd('dist',sp*dt);pos.z-=sp*dt;gap=Math.min(45,gap+dt*.5);
   const k=Math.floor(dist/500);if(k!==storyIdx){storyIdx=k;story(locMode==='heart'?(k?'Кристальные залы тянутся дальше. Хищник идёт по следу…':'Глава ∞ · Сердце города. Здесь бьётся артефакт, гемы сами тянутся к тебе. Беги вглубь!'):k<6?S[k]:'Новый круг. «Ноктюрн» не сдаётся — их машины стали быстрее.')}
   if(!won&&dist>=3000){win()}
   evT-=dt;if(evT<=0&&dist>120){evT=14+R()*8;event()}
@@ -298,17 +336,17 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last
   if(slide>0){slide-=dt;player.scale.y=.48}else player.scale.y=1;
   player.visible=phaseT>0?Math.floor(runT*20)%2===0:(inv<=0||Math.floor(runT*12)%2===0);art.scale.setScalar(1+Math.sin(runT*6)*.2);
   {const u=model.userData,w=jump>0?0:Math.sin(runT*13)*.9;u.L[0].rotation.x=w;u.L[1].rotation.x=-w;u.A[0].rotation.x=-w;u.A[1].rotation.x=w;if(jump>0){u.L[0].rotation.x=-.6;u.L[1].rotation.x=.4;u.A[0].rotation.x=u.A[1].rotation.x=-2.4}}
-  $('abil').textContent=abCd>0?Math.ceil(abCd)+' с':'⚡ '+cs().abName;$('abil').style.opacity=abCd>0?.5:1;
-  const tx=pos.x,sh=shake*.5;camera.position.lerp(new THREE.Vector3(tx,5.1,pos.z+7),dt*5);camera.position.x+=(R()-.5)*sh;camera.position.y+=(R()-.5)*sh;camera.lookAt(tx,1.2,pos.z-5);
+  T('abil',abCd>0?Math.ceil(abCd)+' с':'⚡ '+cs().abName);{const e=$('abil'),o=abCd>0?.5:1;if(e._o!==o){e._o=o;e.style.opacity=o}}
+  const tx=pos.x,sh=shake*.5;camera.position.lerp(cv.set(tx,5.1,pos.z+7),dt*5);camera.position.x+=(R()-.5)*sh;camera.position.y+=(R()-.5)*sh;camera.lookAt(tx,1.2,pos.z-5);
   for(const s of segs)if(s.position.z-pos.z>35){s.position.z-=210;build(s)}
   // монеты
   for(let i=coinsA.length-1;i>=0;i--){const c=coinsA[i];c.rotation.y+=dt*3;
-   if(magT>0&&Math.hypot(c.position.x-pos.x,c.position.z-pos.z)<10){const v=new THREE.Vector3(pos.x,1.2,pos.z).sub(c.position).normalize().multiplyScalar(22*dt);c.position.add(v)}
+   if(magT>0&&Math.hypot(c.position.x-pos.x,c.position.z-pos.z)<10){const v=cv.set(pos.x,1.2,pos.z).sub(c.position).normalize().multiplyScalar(22*dt);c.position.add(v)}
    if(Math.abs(c.position.x-pos.x)<1.35&&Math.abs(c.position.z-pos.z)<1.45){scene.remove(c);coinsA.splice(i,1);{const base=cur.cv*(boostT>0||dblT>0?2:1);cacc+=base*CN[cs().cn-1]*(aff()?1.5:1);const v=Math.floor(cacc);cacc-=v;score+=v;runCoins+=v;qAdd('coin',base);ph.c[laneTarget]++;sfx('coin')}gap=Math.min(45,gap+.4);updateHud()}
    else if(c.position.z>pos.z+12){scene.remove(c);coinsA.splice(i,1)}}
   for(let i=shardsA.length-1;i>=0;i--){const c=shardsA[i];c.rotation.y+=dt*4;if(Math.abs(c.position.x-pos.x)<1.35&&Math.abs(c.position.z-pos.z)<1.45){scene.remove(c);shardsA.splice(i,1);shards+=5;sfx('q');updateHud()}else if(c.position.z>pos.z+12){scene.remove(c);shardsA.splice(i,1)}}
   for(let i=buffsA.length-1;i>=0;i--){const b=buffsA[i];b.m.position.y=1.5+Math.sin(runT*4+i)*.2;if(Math.abs(b.m.position.x-pos.x)<1.4&&Math.abs(b.m.position.z-pos.z)<1.5){scene.remove(b.m);buffsA.splice(i,1);applyBuff(b.t)}else if(b.m.position.z>pos.z+12){scene.remove(b.m);buffsA.splice(i,1)}}
-  bub.visible=shield>0;{const L=[];if(spdT>0)L.push('⚡'+Math.ceil(spdT));if(shield>0)L.push('🛡️'+Math.ceil(shield));if(magT>0)L.push('🧲'+Math.ceil(magT));if(dblT>0)L.push('✨'+Math.ceil(dblT));if(dashT>0)L.push('🔥');if(phaseT>0)L.push('🌀');const e=$('buffs');e.textContent=L.join('  ');e.style.display=L.length?'block':'none'}
+  bub.visible=shield>0;{const L=[];if(spdT>0)L.push('⚡'+Math.ceil(spdT));if(shield>0)L.push('🛡️'+Math.ceil(shield));if(magT>0)L.push('🧲'+Math.ceil(magT));if(dblT>0)L.push('✨'+Math.ceil(dblT));if(dashT>0)L.push('🔥');if(phaseT>0)L.push('🌀');const e=$('buffs'),t=L.join('  ');if(e._v!==t){e._v=t;e.textContent=t;e.style.display=L.length?'block':'none'}}
   // метки обвала
   for(let i=rocks.length-1;i>=0;i--){const r=rocks[i];r.t-=dt;r.mk.visible=Math.floor(r.t*8)%2===0;
    if(r.t<=0){scene.remove(r.mk);rocks.splice(i,1);const o=addObs('rock',r.x,r.z,cur);o.fall=true;o.m.position.y=14}}
@@ -328,10 +366,11 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last
   updGhosts(dt);recT+=dt;if(recT>=.2&&rec.length<2700){recT-=.2;rec.push(+dist.toFixed(1),+pos.x.toFixed(1),+player.position.y.toFixed(1))}
   // погоня
   car.position.set(pos.x*.9,0,pos.z+gap*.6);car.visible=gap<10;sirA.visible=Math.floor(runT*6)%2===0;sirB.visible=!sirA.visible;
-  const gp=Math.max(0,gap)/45;$('chaseBar').style.width=gp*100+'%';$('chaseBar').style.background=gap<12?'#ff4a4a':gap<24?'#ffb52e':'#3ddc84';$('chaseTxt').textContent='🚔 '+Math.max(0,Math.round(gap))+' м';
-  $('vig').style.opacity=Math.min(1,Math.max(0,(12-gap)/12)*.7+Math.max(0,inv-1.1));
+  {const gw=Math.round(Math.max(0,gap)/45*100)+'%',gc=gap<12?'#ff4a4a':gap<24?'#ffb52e':'#3ddc84',cb=$('chaseBar');if(cb._w!==gw){cb._w=gw;cb.style.width=gw}if(cb._c!==gc){cb._c=gc;cb.style.background=gc}T('chaseTxt','🚔 '+Math.max(0,Math.round(gap))+' м')}
+  {const vo=Math.min(1,Math.max(0,(12-gap)/12)*.7+Math.max(0,inv-1.1)).toFixed(2),ve=$('vig');if(ve._o!==vo){ve._o=vo;ve.style.opacity=vo}}
   updateHud()}else if(!active){const t=now/2500;camera.position.set(pos.x+Math.sin(t)*4,2.6,pos.z+Math.cos(t)*4);camera.lookAt(pos.x,1.3,pos.z)}
- renderer.render(scene,camera)}
+ renderer.render(scene,camera);
+ fa+=dt;if(++fc>=40){const av=fa/fc;if(av>.026&&pr>.7){pr=Math.max(.7,pr-.15);renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight)}else if(av<.0155&&pr<prMax){pr=Math.min(prMax,pr+.1);renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight)}fa=fc=0}}
 camera.position.set(0,5,8);camera.lookAt(0,1,0);applySkin();reset();setupGhosts();menu();requestAnimationFrame(animate);
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 </script></body></html>
