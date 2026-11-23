@@ -19,10 +19,11 @@ button{background:#ffb52e;border:0;border-radius:12px;padding:13px 24px;font-siz
 @media(max-width:600px){.panel{padding:14px;margin:8px;max-width:330px;max-height:94vh;overflow:auto;border-radius:16px}.panel h1{font-size:19px;margin:0 0 6px}.panel p{font-size:12.5px;margin:6px 0}.panel small{font-size:11px}.bs{gap:5px;margin-top:8px}.bs button{padding:8px 4px;font-size:13px;border-radius:10px}.wh{width:180px;height:180px}}
 #buffs{position:fixed;left:12px;bottom:62px;z-index:2;color:#fff;font-weight:700;font-size:16px;text-shadow:0 2px 5px #000;background:#0007;border-radius:10px;padding:4px 10px;display:none}
 .wh{position:relative;width:210px;height:210px;margin:18px auto 8px}.wh canvas{width:100%;height:100%;display:block}.wh i{position:absolute;left:50%;top:-20px;transform:translateX(-50%);font-style:normal;font-size:24px;line-height:1;z-index:1}
+#duo{position:fixed;top:14px;left:50%;transform:translateX(-50%);color:#fff;font-weight:700;font-size:14px;background:#0009;border-radius:10px;padding:3px 10px;z-index:2;display:none;white-space:nowrap}#swap{position:fixed;left:12px;bottom:112px;width:76px;height:76px;border-radius:50%;padding:0;margin:0;font-size:30px;z-index:3;display:none;background:#4aa8ff;box-shadow:0 0 14px #4aa8ff}
 </style></head><body>
-<div id="hud">🪙 <span id="coins">0</span><br>🏁 <span id="distance">0</span> м<br>💎 <span id="shards">0</span> 💖 <span id="rev">0</span><br><span id="rule" style="font-size:12px;font-weight:400"></span><br><button id="shopOpen" style="padding:7px 12px;font-size:14px;margin-top:7px">Магазин</button></div>
-<div id="turn">Беги вперёд!</div><div id="chase"><i id="chaseBar"></i><b id="chaseTxt"></b></div><div id="banner"></div><div id="pred"></div><div id="story"></div><div id="vig"></div><div id="buffs"></div><button id="abil">⚡</button>
-<div id="help">← → полоса · ↑ прыжок · ↓ подкат · E способность · свайпы</div>
+<div id="hud">🪙 <span id="coins">0</span><br>🏁 <span id="distance">0</span> м<br>💎 <span id="shards">0</span> 💖 <span id="rev">0</span><br><span id="cap" style="font-size:11px;font-weight:400"></span><br><span id="rule" style="font-size:12px;font-weight:400"></span><br><button id="shopOpen" style="padding:7px 12px;font-size:14px;margin-top:7px">Магазин</button></div>
+<div id="turn">Беги вперёд!</div><div id="chase"><i id="chaseBar"></i><b id="chaseTxt"></b></div><div id="banner"></div><div id="pred"></div><div id="story"></div><div id="vig"></div><div id="duo"></div><button id="swap">⇄</button><div id="buffs"></div><button id="abil">⚡</button>
+<div id="help">← → полоса · ↑ прыжок · ↓ присесть/подкат · E способность · свайпы</div>
 <div id="shop" style="display:none;position:fixed;inset:0;background:#000b;z-index:6;color:#fff;align-items:center;justify-content:center">
 <div class="panel" style="width:min(92vw,390px);max-height:85vh;overflow:auto"><h1>🛍️ Магазин</h1><p>💎 Гемы: <b id="shopGems">0</b> · 🪙 Монеты: <b id="shopCoins">0</b></p><p><small>🏃 скорость · 🪙 монеты · ⏱ перезарядка способности (★ от 1 до 4). В «своём» районе класс усилен: скорость +6%, монеты ×1.5, перезарядка ×1.5.</small></p><div id="shopItems"></div><button id="shopClose">Закрыть</button></div></div>
 <div id="overlay"><div class="panel" id="op"></div></div>
@@ -40,16 +41,16 @@ const bg=(w,h,d)=>{const k=w+'_'+h+'_'+d;return G[k]||(G[k]=new THREE.BoxGeometr
 let batch=null;
 function box(p,w,h,d,m,x,y,z){if(batch&&p===batch.g){batch.l.push([bg(w,h,d),m,x,y,z,1,1,1]);return}const o=new THREE.Mesh(bg(w,h,d),m);o.position.set(x,y,z);p.add(o);return o}
 function figure(sh,sk,pa,ac,st){const g=new THREE.Group(),L=[],A=[];
- box(g,.7,.9,.4,sh,0,1.3,0);box(g,.74,.14,.44,ac,0,.88,0);box(g,.5,.5,.46,sk,0,2,0);
+ box(g,.7,.9,.4,sh,0,1.3,0);box(g,.74,.14,.44,ac,0,.88,0);const hd=box(g,.5,.5,.46,sk,0,2,0);
  for(const x of[-.19,.19]){const p=new THREE.Group();p.position.set(x,.88,0);box(p,.22,.85,.24,pa,0,-.43,0);box(p,.26,.14,.34,ac,0,-.8,-.05);g.add(p);L.push(p)}
  for(const x of[-.47,.47]){const p=new THREE.Group();p.position.set(x,1.68,0);box(p,.22,.36,.24,sh,0,-.17,0);box(p,.17,.4,.19,sk,0,-.52,0);g.add(p);A.push(p)}
  if(st===0){box(g,.56,.18,.5,ac,0,2.3,0);box(g,.5,.06,.3,ac,0,2.22,-.35)}
  else if(st===1){box(g,.54,.22,.5,pa,0,2.28,.02);box(g,.55,.12,.5,ac,0,2.18,0);box(g,.1,.3,.08,ac,-.1,2,.3);box(g,.1,.3,.08,ac,.1,2,.3);box(g,.12,.8,.02,ac,0,1.3,.21)}
  else if(st===2){box(g,.54,.14,.5,ac,0,2.3,0);for(const x of[-.18,0,.18])box(g,.1,.2,.1,ac,x,2.46,0);box(g,.7,1.1,.06,ac,0,1.25,.25)}
- else if(st===4){box(g,.7,.06,.7,ac,0,2.7,0);box(g,.34,.34,.1,ac,0,1.4,.3);for(const x of[-.55,.55])box(g,.1,.9,.5,ac,x,1.55,.3);box(g,.54,.14,.5,ac,0,2.3,0)}
+ else if(st===4){box(g,.52,.75,.1,pa,0,1.85,.27);box(g,.7,.06,.7,ac,0,2.7,0);box(g,.34,.34,.1,ac,0,1.4,.3);for(const x of[-.55,.55])box(g,.1,.9,.5,ac,x,1.55,.3);box(g,.54,.14,.5,ac,0,2.3,0)}
  else{box(g,.56,.34,.5,pa,0,2.12,0);box(g,.5,.12,.04,ac,0,2.02,-.25);box(g,.05,.3,.05,ac,.18,2.5,.1);for(const y of[1.55,1.25,.95])box(g,.5,.06,.02,ac,0,y,.21)}
- g.userData={L,A};return g}
-const player=new THREE.Group();scene.add(player);let model;
+ g.userData={L,A,head:hd};return g}
+const GA=new THREE.Group(),GB=new THREE.Group();scene.add(GA);scene.add(GB);let player=GA,model;
 const bub=new THREE.Mesh(new THREE.SphereGeometry(1.5,14,10),new THREE.MeshBasicMaterial({color:0x4aa8ff,transparent:true,opacity:.25,depthWrite:false}));bub.position.y=1.2;bub.visible=false;player.add(bub);
 const art=box(player,.4,.4,.4,new THREE.MeshBasicMaterial({color:0xffd040}),0,1.3,.35); // артефакт за спиной
 // ---------- биомы ----------
@@ -59,12 +60,14 @@ const B=[
 {n:'Снежный перевал',type:'snow',sky:0xcfe3ee,fog:[25,110],road:0xaebcc6,side:0xf2f6f8,bld:[0xf2f6f8],obs:0x3fa7dc,light:2.2,rule:'🧊 лёд: скользко',lerp:3.6,wind:0,cv:1},
 {n:'Неоновый квартал',type:'neon',sky:0x140a2a,fog:[14,80],road:0x1b1b28,side:0x30304a,bld:[0x242438,0x2c2046,0x1d2c44],obs:0xff2fa0,light:.9,rule:'🌃 темно, но монеты ×2',lerp:12,wind:0,cv:2},
 {n:'Порт',type:'port',sky:0x9fb4c4,fog:[30,125],road:0x40454b,side:0x8a8f94,bld:[0xc0392b,0x2e6fa3,0xd8a31a,0x3d8f6a],obs:0xf1c40f,light:1.9,rule:'📦 больше стен — не зевай',lerp:12,wind:0,cv:1,wallP:.2},
-{n:'Крыши',type:'roof',sky:0xf2a65a,fog:[40,160],road:0x5a4a48,side:0x806a5e,bld:[0x7a5a50,0x9b7b6a,0x6a5048],obs:0xe74c3c,light:2.2,rule:'🌇 закат: скорость выше',lerp:12,wind:0,cv:1,spd:1.12}];
+{n:'Крыши',type:'roof',sky:0xf2a65a,fog:[40,160],road:0x5a4a48,side:0x806a5e,bld:[0x7a5a50,0x9b7b6a,0x6a5048],obs:0xe74c3c,light:2.2,rule:'🌇 закат: скорость выше',lerp:12,wind:0,cv:1,spd:1.12},
+{n:'Джунгли',type:'jungle',sky:0x7fd6a3,fog:[18,90],road:0x4a3c2a,side:0x6b5a3a,bld:[0x2f7a3a,0x3f8f45,0x1f5f2f],obs:0x8a5a2a,light:1.9,rule:'🌿 лианы: больше низких балок',lerp:12,wind:0,cv:1,beamP:.2},
+{n:'Вулкан',type:'lava',sky:0x3a1410,fog:[22,100],road:0x2a2220,side:0x4a3028,bld:[0x3a2018,0x2a1410,0x4a2a1a],obs:0xff5a1a,light:1.3,rule:'🌋 жар: скорость выше, монеты ×1.5',lerp:12,wind:0,cv:1.5,spd:1.08}];
 B.forEach(b=>b.c=new THREE.Color(b.sky));
 const HB1={n:'💠 Сердце города (ивент)',type:'heart',sky:0x0b2a3a,fog:[20,100],road:0x10303c,side:0x1d5568,bld:[0x14485a,0x1a6a78,0x0f3a4a],obs:0x2ff0ff,light:1.6,rule:'💠 гемы лежат гуще',lerp:12,wind:0,cv:1},
 HB2={n:'💠 Сердце города',type:'heart',sky:0x2a1240,fog:[25,115],road:0x1c1230,side:0x3d2a5e,bld:[0x3a2060,0x502a7a,0x2e1a52],obs:0xff7ad9,light:1.8,rule:'💎 гемы лежат гуще · монеты ×1.5',lerp:12,wind:0,cv:1.5};
 HB1.c=new THREE.Color(HB1.sky);HB2.c=new THREE.Color(HB2.sky);
-const EX=[{gnd:0x4a5a45,sun:0xfff2c0},{gnd:0xd9b878,sun:0xfff0b0,amb:{c:0xe8c690,vx:9,vy:0,s:.1}},{gnd:0xeef4f8,sun:0xffffff,amb:{c:0xffffff,vx:.5,vy:-3,s:.16}},{gnd:0x1a1426,sun:0xe8e8ff,amb:{c:0xff5ad0,vx:0,vy:1.5,s:.12},st:1},{gnd:0x6d7378,sun:0xfff0d0},{gnd:0x3a2c2a,sun:0xffb36b}];
+const EX=[{gnd:0x4a5a45,sun:0xfff2c0},{gnd:0xd9b878,sun:0xfff0b0,amb:{c:0xe8c690,vx:9,vy:0,s:.1}},{gnd:0xeef4f8,sun:0xffffff,amb:{c:0xffffff,vx:.5,vy:-3,s:.16}},{gnd:0x1a1426,sun:0xe8e8ff,amb:{c:0xff5ad0,vx:0,vy:1.5,s:.12},st:1},{gnd:0x6d7378,sun:0xfff0d0},{gnd:0x3a2c2a,sun:0xffb36b},{gnd:0x2a4a2a,sun:0xf5ffd0,amb:{c:0xb8ff5a,vx:1,vy:.8,s:.14}},{gnd:0x2a1410,sun:0xff9a3a,amb:{c:0xff7a2a,vx:0,vy:2.2,s:.13}}];
 B.forEach((b,i)=>Object.assign(b,EX[i]));Object.assign(HB1,{gnd:0x0a2230,sun:0x9ffcff,amb:{c:0x2ff0ff,vx:0,vy:1.2,s:.14},st:1});Object.assign(HB2,{gnd:0x1a0f2c,sun:0xffb0ea,amb:{c:0xff7ad9,vx:0,vy:1.2,s:.14},st:1});
 [...B,HB1,HB2].forEach(b=>b.sc=new THREE.Color(b.sun));
 const sunM=new THREE.Mesh(new THREE.SphereGeometry(12,16,12),new THREE.MeshBasicMaterial({color:0xfff2c0,fog:false}));scene.add(sunM);
@@ -84,65 +87,73 @@ function flush(g){const by=new Map();
 function build(g){
  while(g.children.length){const c=g.children[0];g.remove(c);if(c.geometry)c.geometry.dispose()}batch={g,l:[]};
  const b=biomeAt(-g.position.z-15),ty=b.type,ne=ty==='neon'||ty==='heart',gl=ty==='heart'?(evActive()?0x2ff0ff:0xff7ad9):0x2ff0ff,ln=mat(ne?gl:0xf4e7bf,ne);
- box(g,90,.1,30,mat(b.gnd),0,-.3,-15);box(g,9,.18,30,mat(b.road),0,-.12,-15);
+ box(g,90,.1,30,mat(b.gnd),0,-.3,-15);const E=duo?3.5:0,LX=TRKS.flat();if(duo){for(const c of[-4.5,4.5])box(g,5.4,.18,30,mat(b.road),c,-.12,-15);box(g,1.6,.5,30,mat(0x9aa0a6),0,0,-15)}else box(g,9,.18,30,mat(b.road),0,-.12,-15);
  if(ty==='port')for(const s of[-1,1])box(g,30,.1,30,mat(0x2f6f9a),s*37,-.2,-15);
- for(const s of[-1,1]){box(g,1.5,.22,30,mat(b.side),s*5.25,-.08,-15);box(g,.25,.3,30,mat(0xcfcfcf),s*4.55,-.02,-15);box(g,.1,.03,30,ln,s*4.2,0,-15)}
- for(let i=0;i<8;i++)box(g,.12,.03,1.6,ln,0,0,-i*4-1);
- if(ty!=='desert')for(const s of[-1,1])for(const z of[-7,-22]){const dk=mat(0x2b2f36);box(g,.15,4.6,.15,dk,s*4.9,2.3,z);box(g,.9,.12,.12,dk,s*4.5,4.6,z);box(g,.5,.14,.4,mat(ne?gl:0xffe9a8,true),s*4.1,4.5,z)}
- if(ty==='snow'&&R()<.8)box(g,2.4,.03,4,mat(0xcdeeff),laneX[(R()*3)|0],.01,-R()*24-3);
- if(ty==='heart'){const a=mat(gl,true);box(g,.4,7,.4,a,-4.7,3.5,-15);box(g,.4,7,.4,a,4.7,3.5,-15);box(g,9.8,.4,.4,a,0,7,-15)}
+ for(const s of[-1,1]){box(g,1.5,.22,30,mat(b.side),s*(5.25+E),-.08,-15);box(g,.25,.3,30,mat(0xcfcfcf),s*(4.55+E),-.02,-15);box(g,.1,.03,30,ln,s*(4.2+E),0,-15)}
+ for(const cx of duo?[-4.5,4.5]:[0])for(let i=0;i<8;i++)box(g,.12,.03,1.6,ln,cx,0,-i*4-1);
+ if(ty!=='desert')for(const s of[-1,1])for(const z of[-7,-22]){const dk=mat(0x2b2f36);box(g,.15,4.6,.15,dk,s*(4.9+E),2.3,z);box(g,.9,.12,.12,dk,s*(4.5+E),4.6,z);box(g,.5,.14,.4,mat(ne?gl:0xffe9a8,true),s*(4.1+E),4.5,z)}
+ if(ty==='snow'&&R()<.8)box(g,2.4,.03,4,mat(0xcdeeff),LX[(R()*LX.length)|0],.01,-R()*24-3);
+ if(ty==='heart'){const a=mat(gl,true);box(g,.4,7,.4,a,-(4.7+E),3.5,-15);box(g,.4,7,.4,a,4.7+E,3.5,-15);box(g,9.8+2*E,.4,.4,a,0,7,-15)}
  for(const s of[-1,1])for(let i=0;i<2;i++){const x=s*(30+R()*12),z=-i*15-8,h=16+(R()*18|0);
   if(ty==='snow'){const sx=5+R()*3,sy=4+R()*3;bm(cone(),mat(0x8fa6b8),x,3*sy,z,sx,sy,sx);bm(cone(),mat(0xffffff),x,4.8*sy,z,sx*.4,sy*.4,sx*.4)}
   else if(ty==='desert'){box(g,14,h*.5,12,mat(0xb5683c),x,h*.25,z);box(g,14.2,2,12.2,mat(0xd98b55),x,h*.5-1,z)}
+  else if(ty==='jungle'){const sx=5+R()*3,sy=3+R()*2;bm(cone(),mat(0x1f5f2f),x,3*sy,z,sx,sy,sx)}
+  else if(ty==='lava'){const sx=5+R()*3,sy=4+R()*3;bm(cone(),mat(0x3a2420),x,3*sy,z,sx,sy,sx);bm(cone(),mat(0xff5a1a,true),x,4.8*sy,z,sx*.4,sy*.4,sx*.4)}
   else if(ty==='port'){const o=mat(0xe08a1e);box(g,1.2,26,1.2,o,x,13,z);box(g,18,1,1,o,x-s*8,26,z)}
   else if(ty==='heart'){bm(shG,mat(gl,true),x,10,z,3,10,3)}
   else{box(g,8,h,8,mat(ne?0x120d24:ty==='roof'?0x7a5a50:0x7b8794),x,h/2,z);if(ne)for(let y=4;y<h;y+=5)box(g,8.2,.4,8.2,mat(NEON[(R()*4)|0],true),x,y,z)}}
  for(const s of[-1,1])for(let i=0;i<3;i++){
-  const x=s*(8+i*5),z=-i*10-8,col=b.bld[(R()*b.bld.length)|0];
+  const x=s*(8+E+i*5),z=-i*10-8,col=b.bld[(R()*b.bld.length)|0];
   if(ty==='desert'){const h=3+(R()*6|0);box(g,4+(R()*3|0),h,5,mat(col),x,h/2,z);box(g,10,1.6,16,mat(0xd0a766),s*(18+R()*8),.5,z);
    if(R()<.7){const cx=s*(6.6+(R()*2|0)),cz=z+5,gm=mat(0x3f7d43);box(g,.5,2.4,.5,gm,cx,1.2,cz);box(g,.9,.35,.35,gm,cx-s*.6,1.7,cz)}}
   else if(ty==='heart'){const h=6+(R()*8|0);box(g,2,h,2,mat(col),x,h/2,z);bm(shG,mat(gl,true),x,h+2,z,1.6,3.2,1.6);box(g,.12,h,.12,mat(gl,true),x-s*1.05,h/2,z)}
+  else if(ty==='jungle'){box(g,.8,4,.8,mat(0x5a3a1f),x,2,z);const cs=3+(R()*2|0);box(g,cs,2.4,cs,mat(col),x,4.8,z);box(g,cs-1,1.6,cs-1,mat(0x3f8f45),x,6.4,z);if(R()<.5)box(g,.2,3,.2,mat(0x2f7a3a),s*(6.3+E),3,z+3)}
+  else if(ty==='lava'){const h=2+(R()*4|0);box(g,3,h,3,mat(col),x,h/2,z);box(g,.15,h,.15,mat(0xff5a1a,true),x-s*1.6,h/2,z);box(g,4,.1,8,mat(0xff5a1a,true),s*(12+R()*3),-.2,z+3)}
   else if(ty==='port'){for(let j=0,n=1+(R()*3|0);j<n;j++)box(g,4,2.6,8,mat(col),x,1.3+j*2.6,z)}
   else if(ty==='snow'){box(g,.5,1.5,.5,mat(0x5b3b22),x,.75,z);bm(cone(),mat(0x2f6b45),x,4,z);bm(cone2(),mat(0xffffff),x,6.3,z);box(g,4,1,8,mat(0xffffff),s*(12+R()*3),.2,z+4)}
   else{const rf=ty==='roof',h=(rf?3:7)+(R()*(rf?6:16)|0),w=3+(R()*3|0),d=4+(R()*4|0);box(g,w,h,d,mat(col),x,h/2-.1,z);const fx=x-s*(w/2+.06);
    for(let y=2;y<Math.min(h-.5,12);y+=3)if(!ne||R()<.75)box(g,.1,1.1,Math.round(d*.8),ne?mat([0xffd27a,0x7ad9ff,0xff7ad9][(R()*3)|0],true):mat(0x83c5d8),fx,y,z);
    if(ne){box(g,.15,Math.round(h*.8),.4,mat(NEON[(R()*4)|0],true),fx-s*.05,h*.45,z+d/2-.6);if(R()<.6)box(g,.15,2.5,4,mat(NEON[(R()*4)|0],true),fx-s*.1,Math.min(h-2,6),z)}
    if(rf&&R()<.6){box(g,1.6,1.6,1.6,mat(0x8a6a50),x,h+.8,z);box(g,.1,2.2,.1,mat(0x333333),x+1,h+1.1,z);box(g,.2,.2,.2,mat(0xff3030,true),x+1,h+2.3,z)}
-   if(ty==='city'&&R()<.7){box(g,.3,1.4,.3,mat(0x6b4a2a),s*6.3,.7,z+4);box(g,1.5,1.6,1.5,mat(0x3f8a4a),s*6.3,2,z+4)}}
+   if(ty==='city'&&R()<.7){box(g,.3,1.4,.3,mat(0x6b4a2a),s*(6.3+E),.7,z+4);box(g,1.5,1.6,1.5,mat(0x3f8a4a),s*(6.3+E),2,z+4)}}
  }
  flush(g);batch=null}
 let segs=[],obs=[],coinsA=[],parts=[],rocks=[];
 const coinGeo=new THREE.TorusGeometry(.38,.12,8,16),goldM=new THREE.MeshLambertMaterial({color:0xffc928,emissive:0x664400});
-const laneX=[-2.7,0,2.7];
+let laneX=[-2.7,0,2.7],TRKS=[laneX],NL=3,duo=false,trk=0,actId=0,duoLost=false,leverZ=-140,Q2=null,hp=3,levers=[],gameMode=localStorage.getItem('crMode')||'solo';
 function addCoin(x,z){const c=new THREE.Mesh(coinGeo,goldM);c.position.set(x,1.25,z);scene.add(c);coinsA.push(c)}
 function addObs(type,x,z,b){
  let m=new THREE.Group(),h;
  if(type==='low'){h=1.25;box(m,2,h,1,mat(b.obs),0,h/2,0);box(m,2.02,.25,1.02,mat(0xf4e7bf),0,h-.25,0)}
  else if(type==='crate'){h=1.6;box(m,1.6,h,1.6,mat(0xa87a47),0,h/2,0);box(m,1.66,.22,1.66,mat(0x6b4a26),0,.4,0);box(m,1.66,.22,1.66,mat(0x6b4a26),0,1.2,0)}
- else if(type==='beam'){h=0;for(const sx of[-.95,.95])box(m,.2,2.6,.2,mat(0x333840),sx,1.3,0);box(m,2,.6,.5,mat(0xff7a00,true),0,1.7,0)}
+ else if(type==='beam'){h=0;const nb=b.type==='neon'||b.type==='heart',bc=nb?b.obs:0xff7a00;for(const sx of[-.95,.95])box(m,.2,2.6,.2,mat(0x333840),sx,1.3,0);box(m,2,.5,.4,mat(bc,true),0,1.7,0);box(m,2,.12,.42,mat(0xffe14a,true),0,1.42,0);for(const dz of[0,3,6])box(m,1.6,.03,.5,mat(0xffe14a,true),0,.03,dz)}
+ else if(type==='gate'){h=3.4;box(m,5.2,h,.6,mat(0xb8860b),0,h/2,0);for(let k=-2;k<=2;k++)box(m,.12,h,.7,mat(0x222222),k*1.1,h/2,0);box(m,5.4,.3,.8,mat(0xff3030,true),0,h,0)}
  else if(type==='wall'){h=3.4;box(m,1.9,h,1,mat(0x555a66),0,h/2,0);box(m,1.95,.5,1.05,mat(b.obs),0,h-.7,0)}
  else{h=1.7;box(m,1.7,h,1.7,mat(0x666a70),0,h/2,0)}
  m.position.set(x,0,z);scene.add(m);const o={m,type,h,fall:false};obs.push(o);return o}
 let nextZ=-35;
-function spawn(){
- const b=biomeAt(-nextZ),f=(R()*3)|0;
- for(let i=0;i<3;i++){if(i===f)continue;const r=R();
-  if(r<.32)addObs('low',laneX[i],nextZ,b);else if(r<.62)addObs('crate',laneX[i],nextZ,b);else if(r<.72+(b.wallP||0)&&-nextZ>150)addObs('wall',laneX[i],nextZ,b)}
- for(let k=0;k<5;k++)addCoin(laneX[f],nextZ-k*2.2+4);
- {const sp=locMode==='heart'?(evActive()?.55:.45):evActive()?.3:.15;if(R()<sp)addShard(laneX[f],nextZ-8)}
- if(R()<.14)addBuff(laneX[f],nextZ-11);
+function spawn(){const b=biomeAt(-nextZ),fr=[];
+ TRKS.forEach(L=>{const f=(R()*L.length)|0;fr.push(f);
+  if(-nextZ>100&&R()<.1){L.forEach(x=>addObs('beam',x,nextZ,b));for(let k=0;k<4;k++)addCoin(L[f],nextZ-k*1.6+3);return}
+  for(let i=0;i<L.length;i++){if(i===f)continue;const r=R();
+   if(r<.26)addObs('low',L[i],nextZ,b);else if(r<.5)addObs('crate',L[i],nextZ,b);else if(r<.66+(b.beamP||0)&&-nextZ>60)addObs('beam',L[i],nextZ,b);else if(r<.76+(b.wallP||0)+(b.beamP||0)&&-nextZ>150)addObs('wall',L[i],nextZ,b)}
+  for(let k=0;k<5;k++)addCoin(L[f],nextZ-k*2.2+4)});
+ const ti=(R()*TRKS.length)|0,x0=TRKS[ti][fr[ti]];
+ {const sp=locMode==='heart'?(evActive()?.55:.45):evActive()?.3:.15;if(R()<sp)addShard(x0,nextZ-8)}
+ if(R()<.14)addBuff(x0,nextZ-11);
+ if(duo&&nextZ<leverZ){leverZ=nextZ-120-R()*60;const x=(R()*2)|0,Y=TRKS[1-x],g=addObs('gate',(Y[0]+Y[1])/2,nextZ-63,b);g.hw=3.1;addLever(TRKS[x][(R()*2)|0],nextZ-8,g)}
  nextZ-=13+R()*7}
 function addRock(i){const mk=box(scene,2,.05,2,mat(0xff2020,true),laneX[i],.05,0);rocks.push({x:laneX[i],z:pos.z-45,t:1.4,mk});mk.position.z=pos.z-45}
 function smash(o){
  for(let i=0;i<10;i++){const m=new THREE.Mesh(bg(.3,.3,.3),mat(0xa87a47));m.position.set(o.m.position.x,.8,o.m.position.z);scene.add(m);parts.push({m,v:new THREE.Vector3((R()-.5)*7,R()*6+2,(R()-.5)*7),l:.9})}
- scene.remove(o.m);o.dead=true;score+=2;runCoins+=2;qAdd('crate',1);sfx('boom');gap=Math.min(45,gap+1);updateHud()}
+ scene.remove(o.m);o.dead=true;addCoins(2);qAdd('crate',1);qeAdd('ebox',1);sfx('boom');gap=Math.min(45,gap+1);updateHud()}
 // ---------- состояние ----------
 let score=+localStorage.getItem('crScore')||0,runCoins=0,dist=0,speedV=13,active=false,paused=false,won=false,runT=0,recT=0,rec=[],gap=30,inv=0,slowT=0,boostT=0,magT=0,shake=0,evT=16,storyIdx=-1,lastB=null,bt,st;
 const pos=new THREE.Vector3(),cs=()=>skins.find(x=>x.id===equippedSkin)||skins[0],skins=[
 {id:'blue',name:'Городской бегун',price:0,color:0x1679c5,acc:0xffd23f,st:0,sp:2,cn:2,cr:2,bio:[0,5],ab:'breath',abName:'Второе дыхание',cd:25,desc:'отрыв от погони +14 м'},
-{id:'red',name:'Красный спринтер',price:35,color:0xd94343,acc:0xffffff,st:1,sp:4,cn:1,cr:2,bio:[2,4],ab:'sprint',abName:'Спринт',cd:20,desc:'2.5 с рывок ×1.4, сносишь всё на пути'},
-{id:'gold',name:'Золотой бегун',price:90,color:0xe5ad22,acc:0xfff0a0,st:2,sp:1,cn:4,cr:2,bio:[1],ab:'rain',abName:'Золотой дождь',cd:30,desc:'6 с магнит и монеты ×2'},
-{id:'purple',name:'Неоновый бегун',price:150,color:0x874bd1,acc:0x2ff0ff,st:3,sp:2,cn:1,cr:4,bio:[3],ab:'phase',abName:'Фазовый сдвиг',cd:28,desc:'3 с проходишь сквозь препятствия'},
+{id:'red',name:'Красный спринтер',price:35,color:0xd94343,acc:0xffffff,st:1,sp:4,cn:1,cr:2,bio:[2,4,7],ab:'sprint',abName:'Спринт',cd:20,desc:'2.5 с рывок ×1.4, сносишь всё на пути'},
+{id:'gold',name:'Золотой бегун',price:90,color:0xe5ad22,acc:0xfff0a0,st:2,sp:1,cn:4,cr:2,bio:[1,6],ab:'rain',abName:'Золотой дождь',cd:30,desc:'6 с магнит и монеты ×2'},
+{id:'purple',name:'Неоновый бегун',price:150,color:0x874bd1,acc:0x2ff0ff,st:3,sp:2,cn:1,cr:4,bio:[3,6],ab:'phase',abName:'Фазовый сдвиг',cd:28,desc:'3 с проходишь сквозь препятствия'},
 {id:'heart',name:'🌟 Хранитель Сердца',price:1200,gems:1200,ev:1,color:0x1fb5a5,acc:0xfff08a,st:4,sp:4,cn:3,cr:3,bio:[1,3,5],ab:'heart',abName:'Пульс Сердца',cd:35,desc:'4 с неуязвимость, магнит монет, отрыв +8 м'}];
 let ownedSkins=JSON.parse(localStorage.getItem('cityRunnerSkins')||'["blue"]'),equippedSkin=localStorage.getItem('cityRunnerEquipped')||'blue';
 let laneTarget=1,jump=0,slide=0;
@@ -157,8 +168,8 @@ let ghostOn=localStorage.getItem('crGhostOn')!=='0',botsOn=localStorage.getItem(
 function label(t){const c=document.createElement('canvas');c.width=256;c.height=64;const x=c.getContext('2d');x.font='bold 24px Arial';x.textAlign='center';x.lineWidth=4;x.strokeStyle='#000';x.fillStyle='#fff';x.strokeText(t,128,40);x.fillText(t,128,40);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false}));s.scale.set(4,1,1);s.position.y=3.1;return s}
 function ghostFig(col,name){const m=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.4,depthWrite:false}),f=figure(m,m,m,m,0);f.add(label(name));return f}
 function setupGhosts(){ghosts.forEach(g=>scene.remove(g.f));ghosts=[];
- if(ghostOn)saved.filter(s=>!s.off).forEach(s=>ghosts.push({f:ghostFig(0x7fd8ff,s.n+' · '+s.d+' м'),s}));
- if(ghostOn&&botsOn)[['Лиса (бот)',16.2,0],['Тень_Макс (бот)',14.4,1]].forEach(([n,v,o])=>ghosts.push({f:ghostFig(0xffa0e0,n),bot:v,o,ln:1,x:0}));
+ if(ghostOn&&!duo)saved.filter(s=>!s.off).forEach(s=>ghosts.push({f:ghostFig(0x7fd8ff,s.n+' · '+s.d+' м'),s}));
+ if(ghostOn&&botsOn&&!duo)[['Лиса (бот)',16.2,0],['Тень_Макс (бот)',14.4,1]].forEach(([n,v,o])=>ghosts.push({f:ghostFig(0xffa0e0,n),bot:v,o,ln:1,x:0}));
  ghosts.forEach(g=>scene.add(g.f))}
 function trim(){const mine=saved.filter(x=>!x.fr).sort((a,b)=>b.d-a.d).slice(0,3);mine.forEach((s,i)=>s.n=i?'Ты #'+(i+1):'Твой рекорд');saved=mine.concat(saved.filter(x=>x.fr).slice(-3));try{localStorage.setItem('crGhosts',JSON.stringify(saved))}catch(e){}setupGhosts()}
 function saveGhost(){if(rec.length>=30){saved=saved.filter(x=>x!==curGhost);curGhost={n:'',d:Math.floor(dist),s:rec};saved.push(curGhost)}trim()}
@@ -170,13 +181,29 @@ function updGhosts(dt){for(const g of ghosts){let d,x,y=0,ok=true;
  if(ok)for(const o of obs)if(!o.dead&&o.type!=='beam'&&Math.abs(o.m.position.z+d)<1.4&&Math.abs(o.m.position.x-x)<1.2&&y<o.h-.1){ok=false;break}
  g.f.visible=ok;if(ok)g.f.position.set(x,y,-d)}}
 // ---------- сюжет ----------
-const S=['Глава 1 · Кража. Ты вынес «Сердце города» из хранилища корпорации «Ноктюрн». Охрана уже на хвосте!','Глава 2 · Пустыня. Артефакт гудит и нагревается. Дроны «Ноктюрн» ищут тебя с воздуха.','Глава 3 · Перевал. Лёд коварен, но убежище уже близко. Не дай им себя догнать!','Глава 4 · Неон. Последний рывок через квартал «Ноктюрн». Впереди огни убежища!','Глава 5 · Порт. Контейнеры «Ноктюрн» повсюду. Убежище на другой стороне гавани!','Глава 6 · Крыши. Закат и финальный рывок над городом. Ещё немного!'];
+const S=['Глава 1 · Кража. Ты вынес «Сердце города» из хранилища корпорации «Ноктюрн». Охрана уже на хвосте!','Глава 2 · Пустыня. Артефакт гудит и нагревается. Дроны «Ноктюрн» ищут тебя с воздуха.','Глава 3 · Перевал. Лёд коварен, но убежище уже близко. Не дай им себя догнать!','Глава 4 · Неон. Последний рывок через квартал «Ноктюрн». Впереди огни убежища!','Глава 5 · Порт. Контейнеры «Ноктюрн» повсюду. Убежище на другой стороне гавани!','Глава 6 · Крыши. Закат и финальный рывок над городом. Ещё немного!','Глава 7 · Джунгли. Лианы и туман мешают, но артефакт ведёт тебя вперёд.','Глава 8 · Вулкан. Последний рывок: убежище за дымом на горизонте!'];
 // ---------- интерфейс ----------
 const T=(id,v)=>{const e=$(id);if(e._v!==v){e._v=v;e.textContent=v}};
-function updateHud(){T('shards',shards);T('rev',rev);T('coins',score);T('distance',Math.floor(dist));T('shopGems',shards);T('shopCoins',score)}
-function applySkin(){const s=cs();if(model)player.remove(model);model=figure(mat(s.color),mat(0xf0b98b),mat(0x252c3d),mat(s.acc,true),s.st);player.add(model)}
+function updateHud(){T('cap','за забег 🪙'+runCoins+'/'+CCAP+' · 💎'+runGems+'/'+GCAP);T('shards',shards);T('rev',rev);T('coins',score);T('distance',Math.floor(dist));T('shopGems',shards);T('shopCoins',score)}
+const VS={blue:[{n:'Классика'},{n:'Закат',color:0xe8743b,acc:0xffe3a0,pa:0x3b2a2a,c:150},{n:'Ночной патруль',color:0x1c2a4a,acc:0x2ff0ff,pa:0x10131f,g:150}],
+red:[{n:'Классика'},{n:'Огненный',color:0xff7a1a,acc:0xffe14a,pa:0x4a1a0a,c:150},{n:'Ледяной',color:0xbfe6ff,acc:0x4aa8ff,pa:0x2b3f5c,g:150}],
+gold:[{n:'Классика'},{n:'Платина',color:0xc9d3dc,acc:0xffffff,pa:0x4a5560,c:150},{n:'Изумруд',color:0x1fa86a,acc:0xb6ffd9,pa:0x0f3b2a,g:150}],
+purple:[{n:'Классика'},{n:'Кибер',color:0x15151c,acc:0xff3050,pa:0x08080c,c:150},{n:'Аврора',color:0xff7ad9,acc:0x2ff0ff,pa:0x3a2a6a,g:150}],
+heart:[{n:'Классика'},{n:'Закат Сердца',color:0xff8fb1,acc:0xffd27a,pa:0x4a2a4a,c:150},{n:'Тёмное Сердце',color:0x2a1240,acc:0xb36bff,pa:0x0f0820,g:150}]};
+let varOwn={},varSel={};try{varOwn=JSON.parse(localStorage.getItem('crVar'))||{};varSel=JSON.parse(localStorage.getItem('crVarSel'))||{}}catch(e){}
+for(const k in VS)VS[k].push({n:'Кристальный ⏳',color:0x7ff3ff,acc:0xffffff,pa:0x1b3a5a,g:300,ev:1});
+VS.heart.push({n:'Сияющее Сердце',color:0xfff3b0,acc:0xff7ad9,pa:0x3a1f5c,ex:1});
+const vi=id=>varSel[id]||0,pal=s=>{const v=VS[s.id][vi(s.id)];return{color:v.color??s.color,acc:v.acc??s.acc,pa:v.pa??0x252c3d}};
+function varRow(s){const d=document.createElement('div');d.style.cssText='display:flex;gap:5px;flex-wrap:wrap;padding:4px 0 10px;border-bottom:1px solid #ffffff33';
+ VS[s.id].forEach((v,i)=>{const own=i===0||(varOwn[s.id]||[]).includes(i),sel=vi(s.id)===i,b=document.createElement('button');
+  b.style.cssText='margin:0;padding:6px 8px;font-size:11px;border-radius:8px;border:2px solid #'+('000000'+(v.color??s.color).toString(16)).slice(-6)+';background:'+(sel?'#ffb52e':'#2a3442')+';color:'+(sel?'#000':'#fff');
+  b.textContent=(sel?'✔ ':'')+v.n+(own?'':v.ex?' · 🔒 Путь Сердца':v.ev&&!evActive()?' · ивент завершён':' · '+(v.c?'🪙'+v.c:'💎'+v.g));
+  b.onclick=()=>{if(!own&&v.ex){b.textContent='Награда Пути Сердца (500 ⭐)';return}if(!own&&v.ev&&!evActive()){b.textContent='Ивент завершён';return}if(!own){if(v.c?score<v.c:shards<v.g){b.textContent='Не хватает';return}if(v.c)score-=v.c;else shards-=v.g;(varOwn[s.id]=varOwn[s.id]||[]).push(i)}varSel[s.id]=i;localStorage.setItem('crVar',JSON.stringify(varOwn));localStorage.setItem('crVarSel',JSON.stringify(varSel));saveAll();if(s.id===equippedSkin)applySkin();else setPartner();updateHud();renderShop()};d.append(b)});return d}
+const BD={blue:{sk:0xf0b98b,h:1,w:1,hs:1},red:{sk:0x8d5a3b,h:1.12,w:.88,hs:.95},gold:{sk:0xffe0c4,h:.94,w:1.2,hs:1.05},purple:{sk:0xc2d0e6,h:1.05,w:.84,hs:1.15},heart:{sk:0xe9c6a8,h:1.1,w:.96,hs:1}};
+function mkFig(s){const b=BD[s.id],p=pal(s),m=figure(mat(p.color),mat(b.sk),mat(p.pa),mat(p.acc,true),s.st);m.scale.set(b.w,b.h,b.w);m.userData.head.scale.setScalar(b.hs);return m}
+function applySkin(){const s=cs();if(GA.userData.mod)GA.remove(GA.userData.mod);const m=mkFig(s);GA.userData.mod=m;GA.add(m);if(player===GA)model=m;setPartner()}
 let dashT=0,phaseT=0,dblT=0,abCd=0;
-function useAbility(){if(!active||paused||abCd>0)return;const s=cs();const m=1+.15*(up[s.id]||0);abCd=s.cd*(1-.1*(up[s.id]||0));sfx('ab');
+function useAbility(){if(duo)return assist();if(!active||paused||abCd>0)return;const s=cs();const m=1+.15*(up[s.id]||0);abCd=s.cd*(1-.1*(up[s.id]||0));sfx('ab');
  if(s.ab==='breath'){gap=Math.min(45,gap+14*m);banner('💨 Второе дыхание: отрыв +14 м')}
  else if(s.ab==='sprint'){dashT=2.5*m;banner('🔥 Спринт: сносишь всё на пути!')}
  else if(s.ab==='rain'){magT=Math.max(magT,6*m);dblT=6*m;banner('✨ Золотой дождь: магнит и монеты ×2')}
@@ -191,8 +218,8 @@ let AC,sound=localStorage.getItem('crSnd')!=='0',mn=0;
 function tone(f,d,ty,v){if(!sound)return;try{AC=AC||new AudioContext();if(AC.state==='suspended')AC.resume();const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;o.type=ty;o.frequency.value=f;g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(t+d)}catch(e){}}
 const SFX={coin:[880,.08,'square',.04],hit:[110,.3,'sawtooth',.1],ab:[520,.35,'triangle',.08],q:[660,.4,'sine',.1],thunder:[60,.7,'sawtooth',.12],boom:[90,.25,'square',.08],boss:[300,.5,'sawtooth',.07]};
 const sfx=t=>tone(...SFX[t]);
-const SC=[[261,329,392,523],[220,261,329,392],[294,349,440,587],[196,233,311,392],[247,311,370,494],[330,392,494,659],[293,370,440,554]],PT=[0,2,1,3,0,2,3,1];
-setInterval(()=>{if(!active||paused)return;mn++;tone(SC[locMode==='heart'?6:Math.floor(dist/500)%B.length][PT[mn%8]],.22,'triangle',.035);if(gap<10&&mn%3===0)tone(mn%6?700:900,.15,'square',.025)},240);
+const SC=[[261,329,392,523],[220,261,329,392],[294,349,440,587],[196,233,311,392],[247,311,370,494],[330,392,494,659],[196,247,294,392],[165,196,247,330],[293,370,440,554]],PT=[0,2,1,3,0,2,3,1];
+setInterval(()=>{if(!active||paused)return;mn++;tone(SC[locMode==='heart'?8:Math.floor(dist/500)%B.length][PT[mn%8]],.22,'triangle',.035);if(gap<10&&mn%3===0)tone(mn%6?700:900,.15,'square',.025)},240);
 const pet=new THREE.Group();box(pet,.4,.25,.4,mat(0x2a2f3a),0,0,0);box(pet,.7,.05,.1,mat(0xcccccc),0,.18,0);box(pet,.12,.12,.12,mat(0x2ff0ff,true),0,-.05,-.22);scene.add(pet);
 const heli=new THREE.Group();box(heli,3,1.2,3.5,mat(0x2a2f3a),0,0,0);box(heli,8,.08,.5,mat(0x999999),0,.8,0);box(heli,.4,.4,3,mat(0x2a2f3a),0,.2,3);box(heli,.5,.3,.2,mat(0xff2020,true),0,-.2,-1.8);heli.visible=false;scene.add(heli);
 const SP=[.96,1,1.04,1.08],CN=[.9,1,1.25,1.5],CR=[.85,1,1.25,1.5],stars=n=>'★'.repeat(n)+'☆'.repeat(4-n);let cacc=0;
@@ -216,8 +243,22 @@ function spin(kind){if(spinning||!evActive())return;
  spinning=true;const i=pickPrize(),jit=(R()-.5)*30,extra=(360-((wheelAng%360+(i+.5)*45+jit)%360))%360;wheelAng+=1800+extra;pity=i===2?0:pity+1;
  const c=$('wheel');c.style.transition='transform 4s cubic-bezier(.12,.6,.1,1)';c.style.transform='rotate('+wheelAng+'deg)';updateHud();sfx('boss');
  setTimeout(()=>{spinning=false;const m=GR[i]();sfx('q');saveAll();updateHud();eventMenu(m)},4150)}
+let ep=+localStorage.getItem('crEP')||0,epc=[],QE;try{epc=JSON.parse(localStorage.getItem('crEPC'))||[]}catch(e){}try{QE=JSON.parse(localStorage.getItem('crQE'))}catch(e){}
+if(!QE||QE.d!==td)QE={d:td,p:{egem:0,eheart:0,ebox:0},done:[]};
+const MS=[{p:10,t:'🎟 +1 спин',f:()=>{spins+=1}},{p:25,t:'🪙 +300',f:()=>{score+=300}},{p:50,t:'💎 +100',f:()=>{shards+=100}},{p:80,t:'💖 +1 возрождение',f:()=>{rev++}},{p:120,t:'🎟 +2 спина',f:()=>{spins+=2}},{p:170,t:'💎 +200',f:()=>{shards+=200}},{p:230,t:'🪙 +800',f:()=>{score+=800}},{p:300,t:'🎟 +3 спина',f:()=>{spins+=3}},{p:400,t:'💎 +300',f:()=>{shards+=300}},{p:500,t:'🎨 Скин «Сияющее Сердце» для Хранителя Сердца и 💖 +2',f:()=>{varOwn.heart=varOwn.heart||[];if(!varOwn.heart.includes(4))varOwn.heart.push(4);localStorage.setItem('crVar',JSON.stringify(varOwn));rev+=2}}];
+const QED=[{k:'egem',t:'Собери 15 кристаллов 💎',n:15,r:'🎟 +1',f:()=>{spins+=1}},{k:'eheart',t:'Пробеги 600 м в «Сердце города»',n:600,r:'💎 +50',f:()=>{shards+=50}},{k:'ebox',t:'Разбей 10 ящиков',n:10,r:'🪙 +200',f:()=>{score+=200}}];
+const EO=[{t:'🎟 Билет',c:60,f:()=>{spins+=1}},{t:'💖 Возрождение',c:100,f:()=>{rev++}},{t:'🪙 500 монет',c:40,f:()=>{score+=500}}];
+function epAdd(n){const o=ep;ep+=n;if(MS.some(m=>o<m.p&&ep>=m.p))banner('🎁 Награда Пути Сердца! (Ивент → Путь)',3000)}
+function qeAdd(k,v){if(!evActive())return;QE.p[k]+=v;for(const q of QED)if(q.k===k&&!QE.done.includes(k)&&QE.p[k]>=q.n){QE.done.push(k);q.f();epAdd(10);banner('✅ Ивент-задание: '+q.t+' ('+q.r+')',3000);sfx('q');updateHud()}}
+function pathMenu(msg){const can=MS.filter(m=>ep>=m.p&&!epc.includes(m.p));
+ panel('<h1>🗺 Путь Сердца</h1><p>⭐ <b>'+ep+'</b><br><small>кристалл = 1 ⭐, ивент-задание = 10 ⭐</small></p><p style="text-align:left;font-size:12.5px">'+MS.map(m=>(epc.includes(m.p)?'✅':ep>=m.p?'🎁':'🔒')+' '+m.p+' ⭐ — '+m.t).join('<br>')+'</p>'+(msg?'<p><b>'+msg+'</b></p>':''),[...(can.length?[['🎁 Забрать ('+can.length+')',()=>{can.forEach(m=>{m.f();epc.push(m.p)});saveAll();updateHud();sfx('q');pathMenu('Получено: '+can.map(m=>m.t).join(', '))}]]:[]),['← К ивенту',()=>eventMenu()]])}
+function evQuests(){panel('<h1>📋 Ивент-задания</h1><p style="text-align:left">'+QED.map(q=>(QE.done.includes(q.k)?'✅ ':'⬜ ')+q.t+' — '+Math.min(q.n,Math.floor(QE.p[q.k]))+'/'+q.n+'<br><small>награда: '+q.r+' и ⭐10</small>').join('<br>')+'</p><p><small>Обновляются каждый день.</small></p>',[['← К ивенту',()=>eventMenu()]])}
+function evShop(msg){panel('<h1>🛒 Лавка Сердца</h1><p>💎 '+shards+'</p>'+(msg?'<p><b>'+msg+'</b></p>':''),[...EO.map(o=>[o.t+' · 💎'+o.c,()=>{if(shards<o.c)return evShop('Не хватает гемов');shards-=o.c;o.f();saveAll();updateHud();sfx('q');evShop('Куплено: '+o.t)}]),['← К ивенту',()=>eventMenu()]])}
+let runGems=0,capC=0,capG=0;const CCAP=600,GCAP=150;
+function addCoins(v){const a=Math.max(0,Math.min(v,CCAP-runCoins));if(a<v&&!capC){capC=1;banner('🪙 Лимит монет за забег: '+CCAP,3000)}score+=a;runCoins+=a;return a}
+function addGems(v){const a=Math.max(0,Math.min(v,GCAP-runGems));if(a<v&&!capG){capG=1;banner('💎 Лимит гемов за забег: '+GCAP,3000)}shards+=a;runGems+=a;return a}
 let petCd=4,petSt=0,petTgt=null,petN=0;
-function gain(){const cur=biomeAt(dist),base=cur.cv*(boostT>0||dblT>0?2:1);cacc+=base*CN[cs().cn-1]*(aff()?1.5:1);const v=Math.floor(cacc);cacc-=v;score+=v;runCoins+=v;qAdd('coin',base);sfx('coin');updateHud()}
+function gain(){const cur=biomeAt(dist),base=cur.cv*(boostT>0||dblT>0?2:1);cacc+=base*CN[cs().cn-1]*(aff()?1.5:1)*duoMult();const v=Math.floor(cacc);cacc-=v;addCoins(v);qAdd('coin',base);sfx('coin');updateHud()}
 function petGo(p,tx,ty,tz,sp){const dx=tx-p.x,dy=ty-p.y,dz=tz-p.z,d=Math.hypot(dx,dy,dz)||1,m=Math.min(d,sp);p.x+=dx/d*m;p.y+=dy/d*m;p.z+=dz/d*m;return d-m}
 function petNext(){let b=null,bd=1e9;for(const c of coinsA){const d=c.position.distanceTo(pet.position);if(c.position.z<pos.z+2&&c.position.z>pos.z-55&&d<bd){bd=d;b=c}}return b}
 function petUpdate(dt){const p=pet.position,hx=pos.x+1.2,hy=2.6+Math.sin(runT*5)*.15,hz=pos.z-.4;pet.children[1].rotation.y+=dt*30;
@@ -234,7 +275,7 @@ function analyze(){const L=Math.max(...ph.c),h=[['jump',ph.j],['slide',ph.s],['l
  else{if(habit!==h[0][0])banner('🐆 Хищник изучил тебя: '+HT[h[0][0]],4000);habit=h[0][0];favLane=ph.c.indexOf(L);$('pred').textContent='🐆 Привычка: '+HT[habit]}
  ph.j*=.5;ph.s*=.5;ph.c=ph.c.map(v=>v*.5)}
 function trap(){const z=pos.z-45;if(obs.some(o=>Math.abs(o.m.position.z-z)<13)){trapT=1;return}
- const b=biomeAt(dist),ln=habit==='lane'?favLane:dist>1500?laneTarget:(R()*3|0),x=laneX[ln];
+ const b=biomeAt(dist),ln=habit==='lane'?favLane:dist>1500?laneTarget:(R()*NL|0),x=laneX[ln];
  if(habit==='jump')addObs('beam',x,z,b);
  else if(habit==='slide'){addObs('low',x,z,b);addObs('low',x,z-6,b)}
  else{addObs('wall',x,z,b);for(let k=0;k<4;k++)addCoin(x,z+3+k*2.2)}
@@ -251,7 +292,7 @@ function renderShop(){const root=$('shopItems');root.innerHTML='';$('shopGems').
    score-=s.price;shards-=s.gems||0;saveAll();ownedSkins.push(s.id);equippedSkin=s.id;localStorage.setItem('cityRunnerSkins',JSON.stringify(ownedSkins));localStorage.setItem('cityRunnerEquipped',s.id);applySkin();updateHud();renderShop()};
   const w=document.createElement('div');w.append(btn);
   if(owned){const l=up[s.id]||0,c=40*(l+1),ub=document.createElement('button');ub.style.cssText=btn.style.cssText+';background:#7fd8ff;display:block;margin-top:4px';ub.textContent=l>=3?'Ур. MAX':'⬆ Ур.'+l+' · 🪙'+c;ub.disabled=l>=3;ub.onclick=()=>{if(score<c){ub.textContent='Не хватает монет';return}score-=c;up[s.id]=l+1;saveAll();updateHud();renderShop()};w.append(ub)}
-  row.append(info,w);root.append(row)});
+  row.append(info,w);root.append(row);if(owned)root.append(varRow(s))});
  const pb=document.createElement('button');pb.style.cssText='margin:12px 0 0;padding:10px 14px;font-size:14px;width:100%';pb.textContent=hasPet?'🛸 Дрон-помощник: куплен':'🛸 Дрон-помощник · 🪙120 (сам летает за монетами, пассивно раз в 10 с)';pb.disabled=hasPet;pb.onclick=()=>{if(score<120){pb.textContent='Не хватает монет';return}score-=120;hasPet=true;saveAll();updateHud();renderShop()};root.append(pb)}
 function shopOpen(){paused=true;renderShop();$('shop').style.display='flex'}
 $('shopOpen').onclick=shopOpen;
@@ -259,15 +300,15 @@ $('shopClose').onclick=()=>{$('shop').style.display='none';paused=false;saveAll(
 function panel(html,btns){const o=$('op');o.innerHTML=html+'<div class="bs">'+btns.map((b,i)=>'<button class="mb" data-i="'+i+'">'+b[0]+'</button>').join('')+'</div>';o.querySelectorAll('.mb').forEach(e=>e.onclick=btns[+e.dataset.i][1]);$('overlay').style.display='flex'}
 const ghostTxt=()=>'<small>👻 Призраки на трассе: '+ghosts.map(g=>g.s?g.s.n+' ('+g.s.d+' м)':g.f.children[g.f.children.length-1]&&'').filter(Boolean).concat(['Лиса и Тень_Макс (боты)']).join(', ')+'</small>';
 let best=+localStorage.getItem('crBest')||0;
-function saveAll(){try{localStorage.setItem('crScore',score);localStorage.setItem('crQ',JSON.stringify(Q));localStorage.setItem('crUp',JSON.stringify(up));localStorage.setItem('crPet',hasPet?1:0);localStorage.setItem('crBest',best);localStorage.setItem('crSp',spins);localStorage.setItem('crSh',shards);localStorage.setItem('crRev',rev);localStorage.setItem('crPity',pity)}catch(e){}}
+function saveAll(){try{localStorage.setItem('crScore',score);localStorage.setItem('crQ',JSON.stringify(Q));localStorage.setItem('crUp',JSON.stringify(up));localStorage.setItem('crPet',hasPet?1:0);localStorage.setItem('crBest',best);localStorage.setItem('crSp',spins);localStorage.setItem('crSh',shards);localStorage.setItem('crRev',rev);localStorage.setItem('crPity',pity);localStorage.setItem('crEP',ep);localStorage.setItem('crEPC',JSON.stringify(epc));localStorage.setItem('crQE',JSON.stringify(QE))}catch(e){}}
 const back=['← Назад',()=>menu()];
-const VER='v22',LOG=[{"v":"v22","n":"Шансы колеса","t":["Рядом с колесом фортуны появился знак «?» со списком шансов выпадения призов"]},{"v":"v21","n":"Коды","t":["Кнопка «🎁 Коды» в главном меню: каждый код активируется один раз","Новый код: UPDATE"]},{"v":"v20","n":"Оптимизация FPS","t":["Сцена районов склеивается в несколько объектов: в разы меньше вызовов отрисовки","Более лёгкие материалы и меньше выделений памяти в каждом кадре","Разрешение само снижается, если FPS низкий","Реже обновляется интерфейс"]},{"v":"v19","n":"Красивые биомы","t":["Земля до горизонта, бордюры, разметка и фонари в каждом районе","Дальний план: горы, мезы, небоскрёбы, краны порта, кристальные шпили","Окна и вывески, деревья, дюны, сугробы и лёд, арки в «Сердце города»","Солнце или луна, звёзды ночью, частицы: снег, песок, неоновые искры"]},{"v": "v18", "n": "Журнал обновлений", "t": ["Кнопка «📜 Обновления» в главном меню (красная точка, если есть новое)", "Файл CHANGELOG.md в проекте"]}, {"v": "v17", "n": "Возрождение вручную", "t": ["💖 Возрождение больше не тратится само: при поимке игра спрашивает, возродиться или сдаться", "Если сдаться, возрождения сохраняются"]}, {"v": "v16", "n": "Баффы на карте", "t": ["⚡ Ускоритель, 🛡️ Щит, 🧲 Магнит, ✨ Монеты ×2 лежат на трассе", "Активные баффы с таймерами показаны слева внизу"]}, {"v": "v15", "n": "Призраки", "t": ["Боты обходят препятствия, записанные призраки растворяются внутри препятствий", "В меню можно выключить всех призраков или ботов, отключать и удалять отдельных призраков"]}, {"v": "v14", "n": "Гемы и компактное меню", "t": ["Меню на телефоне стало компактнее, кнопки в две колонки", "💎 Гемы — основная валюта (по 5 за кристалл, падают всегда)", "«Хранитель Сердца» стоит 🪙1200 + 💎1200", "После ивента билеты 🎟 можно обменять (1 = 10 💎) или оставить на следующий ивент"]}, {"v": "v13", "n": "Ивент-локация", "t": ["Локация «Сердце города» (кристальные залы) выбирается в меню", "После ивента остаётся навсегда: другая палитра, монеты ×1.5"]}, {"v": "v12", "n": "Ивент «Колесо Сердца»", "t": ["Ивент на 19 дней, колесо фортуны с призами", "Особый класс «Хранитель Сердца» со способностью «Пульс Сердца»", "Приз «Возрождение» и бесплатные спины"]}, {"v": "v11", "n": "Дрон-помощник", "t": ["Пассивно раз в 10 с летит за монетами и забирает до 5 штук"]}, {"v": "v10", "n": "Классы", "t": ["У персонажей 1–4 ★ в скорости, монетах и перезарядке", "Усиление класса в подходящих районах"]}, {"v": "v9", "n": "Код призрака", "t": ["Код призрака стал в ~14 раз короче, кнопка копирует в буфер"]}, {"v": "v8", "n": "Хищник, который учится", "t": ["Погоня адаптируется к привычкам: балки сверху, низкие барьеры, засады", "Сбить хищника с толку можно сменой стиля игры"]}, {"v": "v7", "n": "Большое обновление", "t": ["Главное меню, 6 районов (+Порт, +Крыши), босс-вертолёт, погода", "Задания дня, прокачка способностей, звук и музыка, призраки друзей"]}, {"v": "v6", "n": "Персонажи", "t": ["Новые модели и анимация бега", "Особые способности у каждого персонажа (клавиша E)"]}, {"v": "v5", "n": "Живой мир и сюжет", "t": ["Биомы с разными правилами, разрушаемые ящики, случайные события", "Сюжет с погоней и призраки прошлых забегов"]}];
+const VER='v30',LOG=[{"v":"v30","n":"Джунгли и Вулкан","t":["Два новых района: 🌿 Джунгли (лианы — больше низких балок) и 🌋 Вулкан (скорость выше, монеты ×1.5)","Теперь 8 районов, убежище на 4000 м","Красный спринтер усилен в Вулкане, Золотой и Неоновый бегун в Джунглях"]},{"v":"v29","n":"Низкие балки","t":["Новые препятствия: низкие балки, под которыми нужно присесть (↓ или свайп вниз)","Иногда балка перекрывает все полосы, тогда присесть обязательно","Перед балкой на дороге жёлтые полосы-предупреждения, в неоне и «Сердце города» балки светятся"]},{"v":"v28","n":"Лимиты за забег","t":["За один забег можно собрать не больше 🪙600 монет и 💎150 гемов (счётчик в левом верхнем углу)","Награды колеса, Пути, заданий и кодов лимитом не ограничены"]},{"v":"v27","n":"Финальный скин Пути","t":["Награда за 500 ⭐ в Пути Сердца теперь — эксклюзивный скин «Сияющее Сердце» для персонажа из колеса, Хранителя Сердца","Скин «Кристальный» по-прежнему продаётся всем классам за 💎300 во время ивента"]},{"v":"v26","n":"Больше ивента","t":["🗺 Путь Сердца: 10 наград за ⭐ (кристаллы и задания), в конце скин «Кристальный» для всех классов","📋 Три ежедневных ивент-задания с наградами","🛒 Лавка Сердца: билеты, возрождения и монеты за гемы","🎨 Ивент-скин «Кристальный» для каждого класса (💎300 во время ивента)"]},{"v":"v25","n":"Разные внешности","t":["У каждого класса теперь своё телосложение, рост, размер головы и цвет кожи","У Хранителя Сердца длинные волосы"]},{"v":"v24","n":"Скины классов","t":["У каждого класса теперь 3 скина: классический и два новых","Скины покупаются за 🪙150 или 💎150 в магазине под своим классом и выбираются отдельно для каждого","Скины видны и на напарнике в режиме «Пара бегунов»"]},{"v":"v23","n":"Режим «Пара бегунов»","t":["Новый режим: два бегуна на параллельных дорожках, переключение тапом по экрану, кнопкой ⇄ или клавишей Q","E — помощь: прикрыть напарника щитом или пожертвовать ❤ ради него","Жёлтые рычаги на одной дорожке открывают ворота на другой","Если бегун выбыл, забег продолжается, но бонусы теряются; у каждого по 3 ❤"]},{"v":"v22","n":"Шансы колеса","t":["Рядом с колесом фортуны появился знак «?» со списком шансов выпадения призов"]},{"v":"v21","n":"Коды","t":["Кнопка «🎁 Коды» в главном меню: каждый код активируется один раз","Новый код: UPDATE"]},{"v":"v20","n":"Оптимизация FPS","t":["Сцена районов склеивается в несколько объектов: в разы меньше вызовов отрисовки","Более лёгкие материалы и меньше выделений памяти в каждом кадре","Разрешение само снижается, если FPS низкий","Реже обновляется интерфейс"]},{"v":"v19","n":"Красивые биомы","t":["Земля до горизонта, бордюры, разметка и фонари в каждом районе","Дальний план: горы, мезы, небоскрёбы, краны порта, кристальные шпили","Окна и вывески, деревья, дюны, сугробы и лёд, арки в «Сердце города»","Солнце или луна, звёзды ночью, частицы: снег, песок, неоновые искры"]},{"v": "v18", "n": "Журнал обновлений", "t": ["Кнопка «📜 Обновления» в главном меню (красная точка, если есть новое)", "Файл CHANGELOG.md в проекте"]}, {"v": "v17", "n": "Возрождение вручную", "t": ["💖 Возрождение больше не тратится само: при поимке игра спрашивает, возродиться или сдаться", "Если сдаться, возрождения сохраняются"]}, {"v": "v16", "n": "Баффы на карте", "t": ["⚡ Ускоритель, 🛡️ Щит, 🧲 Магнит, ✨ Монеты ×2 лежат на трассе", "Активные баффы с таймерами показаны слева внизу"]}, {"v": "v15", "n": "Призраки", "t": ["Боты обходят препятствия, записанные призраки растворяются внутри препятствий", "В меню можно выключить всех призраков или ботов, отключать и удалять отдельных призраков"]}, {"v": "v14", "n": "Гемы и компактное меню", "t": ["Меню на телефоне стало компактнее, кнопки в две колонки", "💎 Гемы — основная валюта (по 5 за кристалл, падают всегда)", "«Хранитель Сердца» стоит 🪙1200 + 💎1200", "После ивента билеты 🎟 можно обменять (1 = 10 💎) или оставить на следующий ивент"]}, {"v": "v13", "n": "Ивент-локация", "t": ["Локация «Сердце города» (кристальные залы) выбирается в меню", "После ивента остаётся навсегда: другая палитра, монеты ×1.5"]}, {"v": "v12", "n": "Ивент «Колесо Сердца»", "t": ["Ивент на 19 дней, колесо фортуны с призами", "Особый класс «Хранитель Сердца» со способностью «Пульс Сердца»", "Приз «Возрождение» и бесплатные спины"]}, {"v": "v11", "n": "Дрон-помощник", "t": ["Пассивно раз в 10 с летит за монетами и забирает до 5 штук"]}, {"v": "v10", "n": "Классы", "t": ["У персонажей 1–4 ★ в скорости, монетах и перезарядке", "Усиление класса в подходящих районах"]}, {"v": "v9", "n": "Код призрака", "t": ["Код призрака стал в ~14 раз короче, кнопка копирует в буфер"]}, {"v": "v8", "n": "Хищник, который учится", "t": ["Погоня адаптируется к привычкам: балки сверху, низкие барьеры, засады", "Сбить хищника с толку можно сменой стиля игры"]}, {"v": "v7", "n": "Большое обновление", "t": ["Главное меню, 6 районов (+Порт, +Крыши), босс-вертолёт, погода", "Задания дня, прокачка способностей, звук и музыка, призраки друзей"]}, {"v": "v6", "n": "Персонажи", "t": ["Новые модели и анимация бега", "Особые способности у каждого персонажа (клавиша E)"]}, {"v": "v5", "n": "Живой мир и сюжет", "t": ["Биомы с разными правилами, разрушаемые ящики, случайные события", "Сюжет с погоней и призраки прошлых забегов"]}];
 function updates(){localStorage.setItem('crSeen',VER);panel('<h1>📜 Обновления</h1><div style="text-align:left;font-size:12.5px;max-height:55vh;overflow:auto">'+LOG.map(e=>'<b>'+e.v+' · '+e.n+'</b>'+e.t.map(x=>'<br>• '+x).join('')).join('<br><br>')+'</div>',[back])}
 const CODES={UPDATE:{t:'🪙500 + 💎100 + 🎟1 спин',f:()=>{score+=500;shards+=100;spins+=1}}};
 let usedCodes=[];try{usedCodes=JSON.parse(localStorage.getItem('crCodes'))||[]}catch(e){}
 function codesMenu(msg){panel('<h1>🎁 Коды</h1><p><small>Введи промокод и получи награду. Каждый код активируется один раз.</small></p><input id="cin" placeholder="КОД" maxlength="24" autocomplete="off" autocapitalize="characters" style="width:100%;padding:10px;font-size:16px;border-radius:10px;border:0;text-align:center;text-transform:uppercase">'+(msg?'<p><b>'+msg+'</b></p>':''),[['✅ Активировать',redeem],back])}
 function redeem(){const v=($('cin').value||'').trim().toUpperCase();if(!v)return codesMenu('Введи код');const c=CODES[v];if(!c)return codesMenu('❌ Такого кода нет');if(usedCodes.includes(v))return codesMenu('Этот код уже активирован');usedCodes.push(v);try{localStorage.setItem('crCodes',JSON.stringify(usedCodes))}catch(e){}c.f();saveAll();updateHud();sfx('q');codesMenu('🎉 Код принят: '+c.t)}
-function menu(){panel('<h1>🏃 CITY RUNNER 3D</h1><p>Беги с артефактом «Сердце города» до убежища (3000 м)!</p><p><small>💎 '+shards+' · 🪙 '+score+' · Рекорд: '+best+' м · '+VER+'<br>'+cs().name+' · 🏃'+stars(cs().sp)+' 🪙'+stars(cs().cn)+' ⏱'+stars(cs().cr)+'</small></p>',[['▶ Играть',begin],['📍 '+(locMode==='heart'?'💠 Сердце':'🏙️ Районы'),()=>{locMode=locMode==='heart'?'city':'heart';localStorage.setItem('crLoc',locMode);reset();menu()}],['🎡 Ивент'+(evActive()?' · '+evDays()+' дн.':''),eventMenu],['👤 Классы',shopOpen],['📋 Задания',quests],['👻 Призраки',ghostMenu],['📖 Сюжет',lore],['🎁 Коды',codesMenu],['📜 Обновления'+(localStorage.getItem('crSeen')!==VER?' 🔴':''),updates],['🔊 '+(sound?'Звук вкл':'Звук выкл'),()=>{sound=!sound;localStorage.setItem('crSnd',sound?1:0);menu()}]])}
+function menu(){panel('<h1>🏃 CITY RUNNER 3D</h1><p>Беги с артефактом «Сердце города» до убежища (4000 м)!</p><p><small>💎 '+shards+' · 🪙 '+score+' · Рекорд: '+best+' м · '+VER+'<br>'+cs().name+' · 🏃'+stars(cs().sp)+' 🪙'+stars(cs().cn)+' ⏱'+stars(cs().cr)+'</small></p>',[['▶ Играть',begin],['📍 '+(locMode==='heart'?'💠 Сердце':'🏙️ Районы'),()=>{locMode=locMode==='heart'?'city':'heart';localStorage.setItem('crLoc',locMode);reset();menu()}],['👥 '+(gameMode==='duo'?'Пара':'Соло'),()=>{gameMode=gameMode==='duo'?'solo':'duo';localStorage.setItem('crMode',gameMode);reset();setupGhosts();menu()}],['🎡 Ивент'+(evActive()?' · '+evDays()+' дн.':''),eventMenu],['👤 Классы',shopOpen],['📋 Задания',quests],['👻 Призраки',ghostMenu],['📖 Сюжет',lore],['🎁 Коды',codesMenu],['📜 Обновления'+(localStorage.getItem('crSeen')!==VER?' 🔴':''),updates],['🔊 '+(sound?'Звук вкл':'Звук выкл'),()=>{sound=!sound;localStorage.setItem('crSnd',sound?1:0);menu()}]])}
 function quests(){panel('<h1>📋 Задания дня</h1><p style="text-align:left">'+QD.map(q=>(Q.done.includes(q.k)?'✅ ':'⬜ ')+q.t+' — '+Math.min(q.n,Math.floor(Q.p[q.k]))+'/'+q.n+' (+'+q.r+' 🪙)').join('<br>')+'</p>',[back])}
 function lore(){panel('<h1>📖 Сюжет</h1><p style="text-align:left;font-size:13px">'+S.join('<br><br>')+'</p>',[back])}
 const AL='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_',cl=(v)=>Math.max(0,Math.min(63,Math.round(v)));
@@ -277,35 +318,82 @@ function dec(t){const o=[];let q=0;for(let i=0;i+2<t.length;i+=3){q+=AL.indexOf(
 const WN=['🪙 250 монет','🎟 +3 спина','🌟 Особый класс «Хранитель Сердца»','💖 Возрождение','💎 75 гемов','🪙 60 монет','🪙 100 монет','🎟 +1 спин'];
 function oddsMenu(){if(spinning)return;const sum=WP.reduce((a,p)=>a+p.w,0);panel('<h1>🎡 Шансы призов</h1><p style="text-align:left;font-size:13px">'+WP.map((p,i)=>WN[i]+' — <b>'+(p.w/sum*100).toFixed(1)+'%</b>').join('<br>')+'</p><p><small>Гарантия: если класс не выпадал 29 спинов подряд, 30-й спин даёт его. Сейчас без класса: '+pity+'. Если класс уже есть, вместо него дают 🪙400.</small></p>',[['← К колесу',()=>eventMenu()]])}
 function eventMenu(msg){if(spinning)return;const on=evActive();
- panel('<h1>🎡 Колесо Сердца</h1><p><small>'+(on?'Ивент идёт ещё '+evDays()+' дн. Главный приз — особый класс «Хранитель Сердца»; после ивента он появится в магазине. Гемы 💎 (по 5) лежат на трассе.':'Ивент завершён. «Хранитель Сердца» в магазине: 🪙1200 + 💎1200. Билетов 🎟 '+spins+': обменяй (1 = 10 💎) или оставь до следующего ивента.')+'</small></p>'+(on?'<div class="wh"><i>🔻</i><canvas id="wheel" width="250" height="250"></canvas><button id="wq" style="position:absolute;right:-38px;top:-6px;width:30px;height:30px;border-radius:50%;padding:0;margin:0;font-size:17px;line-height:30px">?</button></div>':'')+(msg?'<p><b>'+msg+'</b></p>':'')+'<p><small>🪙 '+score+' · 💎 '+shards+' · 🎟 '+spins+' · 💖 '+rev+'</small></p>',on?[...(spins>0?[['🎰 Крутить (🎟 '+spins+')',()=>spin('free')]]:[]),['🎰 За 🪙120',()=>spin('coin')],['🎰 За 💎40',()=>spin('shard')],back]:[...(spins>0?[['💱 Обменять 🎟'+spins+' → 💎'+spins*10,()=>{const n=spins;shards+=n*10;spins=0;saveAll();updateHud();eventMenu('Обмен: '+n+' 🎟 → 💎'+n*10)}]]:[]),back]);drawWheel();if($('wq'))$('wq').onclick=oddsMenu}
+ panel('<h1>🎡 Колесо Сердца</h1><p><small>'+(on?'Ивент идёт ещё '+evDays()+' дн. Главный приз — особый класс «Хранитель Сердца»; после ивента он появится в магазине. Гемы 💎 (по 5) лежат на трассе.':'Ивент завершён. «Хранитель Сердца» в магазине: 🪙1200 + 💎1200. Билетов 🎟 '+spins+': обменяй (1 = 10 💎) или оставь до следующего ивента.')+'</small></p>'+(on?'<div class="wh"><i>🔻</i><canvas id="wheel" width="250" height="250"></canvas><button id="wq" style="position:absolute;right:-38px;top:-6px;width:30px;height:30px;border-radius:50%;padding:0;margin:0;font-size:17px;line-height:30px">?</button></div>':'')+(msg?'<p><b>'+msg+'</b></p>':'')+'<p><small>🪙 '+score+' · 💎 '+shards+' · 🎟 '+spins+' · 💖 '+rev+'</small></p>',on?[...(spins>0?[['🎰 Крутить (🎟 '+spins+')',()=>spin('free')]]:[]),['🎰 За 🪙120',()=>spin('coin')],['🎰 За 💎40',()=>spin('shard')],['🗺 Путь ⭐'+ep,pathMenu],['📋 Задания',evQuests],['🛒 Лавка',evShop],back]:[...(spins>0?[['💱 Обменять 🎟'+spins+' → 💎'+spins*10,()=>{const n=spins;shards+=n*10;spins=0;saveAll();updateHud();eventMenu('Обмен: '+n+' 🎟 → 💎'+n*10)}]]:[]),...(MS.some(m=>ep>=m.p&&!epc.includes(m.p))?[['🎁 Награды пути',pathMenu]]:[]),back]);drawWheel();if($('wq'))$('wq').onclick=oddsMenu}
 function ghostMenu(){const b=[['👻 Призраки: '+(ghostOn?'вкл':'выкл'),()=>{ghostOn=!ghostOn;localStorage.setItem('crGhostOn',ghostOn?1:0);setupGhosts();ghostMenu()}],['🤖 Боты: '+(botsOn?'вкл':'выкл'),()=>{botsOn=!botsOn;localStorage.setItem('crBots',botsOn?1:0);setupGhosts();ghostMenu()}]];
  saved.forEach(x=>b.push([(x.off?'🚫 ':'✅ ')+x.n+' · '+x.d+' м',()=>{x.off=!x.off;trim();ghostMenu()}],['🗑 Удалить',()=>{if(confirm('Удалить призрака «'+x.n+'»?')){saved=saved.filter(y=>y!==x);if(curGhost===x)curGhost=null;trim();ghostMenu()}}]));
  b.push(['📤 Копировать мой',()=>{const m=saved.find(x=>!x.fr);if(!m)return alert('Сначала пробеги забег');const code=Math.floor(m.d)+'.'+enc(m.s);navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(code).then(()=>alert('Код скопирован ('+code.length+' симв.). Отправь его другу!'),()=>prompt('Скопируй код:',code)):prompt('Скопируй код:',code)}],['📥 Импорт друга',()=>{const c=prompt('Вставь код призрака:');if(!c)return;try{const[d,t]=c.trim().split('.');if(!/^\d+$/.test(d)||!/^[A-Za-z0-9_-]+$/.test(t)||t.length%3||t.length>3600)throw 0;saved.push({n:(prompt('Имя друга?')||'Друг').slice(0,14),d:+d,s:dec(t),fr:1});trim();ghostMenu()}catch(e){alert('Неверный код')}}],back);
  panel('<h1>👻 Призраки</h1><p><small>Нажми на имя призрака, чтобы выключить или включить его, 🗑 — удалить. Призраки растворяются, когда проходят сквозь препятствие.</small></p>',b)}
 function finish(){active=false;best=Math.max(best,Math.floor(dist));saveAll()}
-function end(){finish();car.visible=true;saveGhost();panel('<h1>Тебя поймали!</h1><p>«Ноктюрн» вернул артефакт.<br>Монеты за забег: '+runCoins+'<br>Дистанция: '+Math.floor(dist)+' м</p>'+ghostTxt(),[['Ещё раз',begin],['🏠 В меню',menu]])}
-function win(){finish();won=true;saveGhost();panel('<h1>🏆 Побег удался!</h1><p>Ты добрался до убежища с «Сердцем города». Но «Ноктюрн» не сдаётся…<br>Монеты за забег: '+runCoins+'</p>',[['Бежать дальше',()=>{$('overlay').style.display='none';active=true}],['🏠 В меню',menu]])}
-function reset(){segs.forEach(g=>scene.remove(g));segs=[];[...obs.map(o=>o.m),...shardsA,...buffsA.map(b=>b.m),...coinsA,...parts.map(p=>p.m),...rocks.map(r=>r.mk)].forEach(m=>scene.remove(m));obs=[];coinsA=[];shardsA=[];buffsA=[];parts=[];rocks=[];
- runCoins=0;dist=0;runT=0;recT=0;rec=[];gap=30;inv=0;slowT=0;boostT=0;magT=0;shake=0;evT=16;nextZ=-35;storyIdx=-1;won=false;lastB=null;dashT=phaseT=dblT=abCd=spdT=shield=0;weather=0;wT=40;boss=0;bossDone=-1;rain.visible=false;heli.visible=false;curGhost=null;petSt=0;petCd=4;petTgt=null;pet.position.set(1.2,2.6,0);ph={j:0,s:0,c:[0,0,0]};habit=null;anT=12;trapT=8;$('pred').textContent='🐆 Хищник изучает тебя…';
+function end(){finish();car.visible=true;if(!duo)saveGhost();panel('<h1>Тебя поймали!</h1><p>«Ноктюрн» вернул артефакт.<br>Монеты за забег: '+runCoins+'<br>Дистанция: '+Math.floor(dist)+' м</p>'+ghostTxt(),[['Ещё раз',begin],['🏠 В меню',menu]])}
+function win(){finish();won=true;if(!duo)saveGhost();panel('<h1>🏆 Побег удался!</h1><p>Ты добрался до убежища с «Сердцем города». Но «Ноктюрн» не сдаётся…<br>Монеты за забег: '+runCoins+'</p>',[['Бежать дальше',()=>{$('overlay').style.display='none';active=true}],['🏠 В меню',menu]])}
+
+// ---------- режим «Пара бегунов» ----------
+const duoMult=()=>duo?(duoLost?.5:1.25):1;
+const mk=new THREE.Mesh(new THREE.ConeGeometry(.35,.7,6),new THREE.MeshBasicMaterial({color:0xffd23f}));mk.rotation.x=Math.PI;mk.visible=false;scene.add(mk);
+const bub2=new THREE.Mesh(bub.geometry,bub.material);bub2.position.y=1.2;bub2.visible=false;
+function setPartner(){const s=skins.find(x=>x.id!==equippedSkin&&ownedSkins.includes(x.id))||skins.find(x=>x.id!==equippedSkin);if(GB.userData.mod)GB.remove(GB.userData.mod);const m=mkFig(s);GB.userData.mod=m;GB.add(m);if(Q2)Q2.m=m}
+function setMode(){duo=gameMode==='duo';TRKS=duo?[[-5.85,-3.15],[3.15,5.85]]:[[-2.7,0,2.7]];player=GA;trk=0;actId=0;laneX=TRKS[0];NL=laneX.length;duoLost=false;leverZ=-140;hp=3;
+ levers.forEach(l=>scene.remove(l.m));levers=[];camera.fov=duo?78:65;camera.updateProjectionMatrix();
+ Q2={x:TRKS.length>1?TRKS[1][1]:0,lane:1,jump:0,slide:0,inv:0,hp:3,sh:0,trk:1,g:GB,alive:true,id:1};model=GA.userData.mod;setPartner();
+ GB.visible=duo;mk.visible=false;bub2.visible=false;$('chase').style.display=duo?'none':'block';$('duo').style.display=duo?'block':'none';$('swap').style.display=duo?'block':'none'}
+function duoInit(){laneTarget=duo?0:1;pos.x=duo?laneX[0]:0;player.position.set(pos.x,0,0);if(duo){Q2.x=TRKS[1][1];GB.position.set(Q2.x,0,0);GB.scale.set(1,1,1);GB.visible=true}}
+function doSwap(){const t={x:pos.x,lane:laneTarget,jump,slide,inv,hp,sh:shield,trk,g:player,m:model,id:actId,alive:true};
+ pos.x=Q2.x;laneTarget=Q2.lane;jump=Q2.jump;slide=Q2.slide;inv=Q2.inv;hp=Q2.hp;shield=Q2.sh;trk=Q2.trk;player=Q2.g;model=Q2.m;actId=Q2.id;laneX=TRKS[trk];Q2=t}
+function swapRun(){if(!duo||!active||paused||!Q2.alive)return;doSwap();banner('🔁 Управляешь '+(actId?'🅱':'🅰'),800);sfx('ab')}
+function duoHit(msg){inv=1.6;hp--;shake=.5;sfx('hit');banner((actId?'🅱':'🅰')+' ранен! ❤'+Math.max(0,hp),1300);if(hp<=0)duoDeath()}
+function duoDeath(){if(!Q2.alive){end();return}doSwap();Q2.alive=false;Q2.g.visible=false;duoLost=true;inv=Math.max(inv,1.5);banner('💔 Напарник выбыл! Бонусы потеряны',3000)}
+function assist(){if(!active||paused||abCd>0||!Q2.alive)return;
+ if(Q2.hp<=1){Q2.hp=Math.min(3,Q2.hp+2);Q2.sh=4;abCd=14;hp--;banner('💞 Жертва! Напарник +2 ❤ и щит',2500);sfx('ab');if(hp<=0)duoDeath()}
+ else{Q2.sh=4;abCd=10;banner('🤝 Прикрытие: напарник под щитом 4 с',2000);sfx('ab')}}
+function addLever(x,z,gate){const m=new THREE.Group();box(m,1.6,.12,1.6,mat(0xffd23f,true),0,.08,0);box(m,.14,1,.14,mat(0x888888),0,.6,0);box(m,.4,.4,.4,mat(0xff3030,true),0,1.2,0);m.position.set(x,0,z);scene.add(m);levers.push({m,gate,x})}
+function duoLevers(){for(let i=levers.length-1;i>=0;i--){const l=levers[i],z=l.m.position.z;l.m.children[2].position.y=1.2+Math.sin(runT*6)*.15;
+  const hit=x=>Math.abs(z-pos.z)<1.5&&Math.abs(l.x-x)<1.5;
+  if(hit(pos.x)||(Q2.alive&&hit(Q2.x))){scene.remove(l.m);levers.splice(i,1);const g=l.gate;if(g&&!g.dead){scene.remove(g.m);g.dead=true;for(let k=0;k<10;k++){const p=new THREE.Mesh(bg(.3,.3,.3),mat(0xb8860b));p.position.set(g.m.position.x+(R()-.5)*4,1.5,g.m.position.z);scene.add(p);parts.push({m:p,v:new THREE.Vector3((R()-.5)*6,R()*5,(R()-.5)*6),l:.9})}}banner('🔓 Рычаг! Ворота открыты',2000);sfx('q');addCoins(3);updateHud()}
+  else if(z>pos.z+12){scene.remove(l.m);levers.splice(i,1)}}}
+function duoHud(){gap=45;const hs=n=>'❤'.repeat(Math.max(0,n))+'♡'.repeat(Math.max(0,3-n)),aA=actId===0?true:Q2.alive,aB=actId===1?true:Q2.alive,a=actId===0?hp:Q2.hp,b=actId===1?hp:Q2.hp;
+ T('duo',(actId===0?'▶':'')+'🅰 '+(aA?hs(a):'☠')+'   '+(actId===1?'▶':'')+'🅱 '+(aB?hs(b):'☠')+(duoLost?' 💔':''));
+ mk.visible=true;mk.position.set(player.position.x,3.5+Math.sin(runT*6)*.2,pos.z);mk.material.color.setHex(actId?0x2ff0ff:0xffd23f);
+ if(bub2.parent!==Q2.g)Q2.g.add(bub2);bub2.visible=Q2.alive&&Q2.sh>0}
+function partnerStep(dt){const r=Q2;if(!r.alive)return;r.inv-=dt;r.sh-=dt;const L=TRKS[r.trk],g=r.g;let th=null;
+ for(const o of obs){if(o.dead)continue;const d=pos.z-o.m.position.z;if(d<.5||d>12||Math.abs(o.m.position.x-L[r.lane])>(o.hw||1.3))continue;if(o.ok===undefined)o.ok=R()<.8;if(o.ok&&!o.fall){th=o;break}}
+ if(th){const d=pos.z-th.m.position.z;
+  if(th.type==='beam'){if(d<4&&r.slide<=0&&r.jump===0)r.slide=.7}
+  else{const fl=L.findIndex((x,i)=>i!==r.lane&&!obs.some(q=>!q.dead&&Math.abs(q.m.position.x-x)<(q.hw||1.3)&&pos.z-q.m.position.z>-1&&pos.z-q.m.position.z<14));
+   if(fl>=0&&th.type!=='gate')r.lane=fl;else if(th.type!=='wall'&&th.type!=='gate'&&d<4&&r.jump===0&&r.slide<=0)r.jump=.001}}
+ r.x+=(L[r.lane]-r.x)*Math.min(1,dt*10);
+ if(r.jump>0){r.jump+=dt*2.8;g.position.y=Math.sin(Math.min(r.jump,Math.PI))*2.05;if(r.jump>=Math.PI){r.jump=0;g.position.y=0}}
+ if(r.slide>0){r.slide-=dt;g.scale.y=.48}else g.scale.y=1;
+ g.position.x=r.x;g.position.z=pos.z;g.visible=r.inv<=0||Math.floor(runT*12)%2===0;
+ {const u=r.m.userData,w=r.jump>0?0:Math.sin(runT*13+1)*.9;u.L[0].rotation.x=w;u.L[1].rotation.x=-w;u.A[0].rotation.x=-w;u.A[1].rotation.x=w}
+ for(const o of obs){if(o.dead||o.fall)continue;if(Math.abs(o.m.position.z-pos.z)<1.2&&Math.abs(o.m.position.x-r.x)<(o.hw||1.15)){
+   if(o.type==='crate'&&r.slide>0){smash(o);continue}
+   if(o.type==='beam'){if(r.slide>0)continue}else if(g.position.y>o.h-.1&&o.type!=='wall'&&o.type!=='gate')continue;
+   if(r.inv>0)continue;if(r.sh>0){r.sh=0;r.inv=1;continue}
+   r.inv=1.6;r.hp--;shake=.3;sfx('hit');banner((r.id?'🅱':'🅰')+' споткнулся! ❤'+Math.max(0,r.hp),1200);
+   if(r.hp<=0){r.alive=false;g.visible=false;duoLost=true;banner('💔 Напарник выбыл! Бонусы потеряны',3000)}}}
+ for(let i=coinsA.length-1;i>=0;i--){const c=coinsA[i];if(Math.abs(c.position.x-r.x)<1.35&&Math.abs(c.position.z-pos.z)<1.45){scene.remove(c);coinsA.splice(i,1);gain()}}}
+$('swap').onclick=swapRun;
+function reset(){setMode();segs.forEach(g=>scene.remove(g));segs=[];[...obs.map(o=>o.m),...shardsA,...buffsA.map(b=>b.m),...coinsA,...parts.map(p=>p.m),...rocks.map(r=>r.mk)].forEach(m=>scene.remove(m));obs=[];coinsA=[];shardsA=[];buffsA=[];parts=[];rocks=[];
+ runCoins=0;runGems=0;capC=capG=0;dist=0;runT=0;recT=0;rec=[];gap=30;inv=0;slowT=0;boostT=0;magT=0;shake=0;evT=16;nextZ=-35;storyIdx=-1;won=false;lastB=null;dashT=phaseT=dblT=abCd=spdT=shield=0;weather=0;wT=40;boss=0;bossDone=-1;rain.visible=false;heli.visible=false;curGhost=null;petSt=0;petCd=4;petTgt=null;pet.position.set(1.2,2.6,0);ph={j:0,s:0,c:[0,0,0]};habit=null;anT=12;trapT=8;$('pred').textContent='🐆 Хищник изучает тебя…';
  pos.set(0,0,0);laneTarget=1;jump=0;slide=0;player.position.set(0,0,0);player.scale.set(1,1,1);player.visible=true;car.visible=false;
  scene.background.copy(biomeAt(0).c);scene.fog.color.copy(biomeAt(0).c);scene.fog.near=35;scene.fog.far=145;hemi.intensity=2;
- for(let i=0;i<7;i++){const g=new THREE.Group();g.position.z=-i*30;scene.add(g);build(g);segs.push(g)}updateHud()}
-function begin(){reset();active=true;$('overlay').style.display='none'}
+ for(let i=0;i<7;i++){const g=new THREE.Group();g.position.z=-i*30;scene.add(g);build(g);segs.push(g)}duoInit();updateHud()}
+function begin(){reset();active=true;$('overlay').style.display='none';if(duo)banner('👥 Тап или Q — переключить бегуна · E — помощь · жёлтый рычаг открывает ворота',5000)}
 // ---------- события и урон ----------
-function hurt(msg){if(inv>0)return;if(shield>0){shield=0;inv=1;shake=.3;banner('🛡️ Щит поглотил удар!',1200);sfx('boom');return}inv=1.6;sfx('hit');slowT=1;gap-=14;shake=.6;banner(msg,1500);if(gap<=0){if(rev>0)askRevive();else end()}}
+function hurt(msg){if(inv>0)return;if(shield>0){shield=0;inv=1;shake=.3;banner('🛡️ Щит поглотил удар!',1200);sfx('boom');return}if(duo){duoHit(msg);return}inv=1.6;sfx('hit');slowT=1;gap-=14;shake=.6;banner(msg,1500);if(gap<=0){if(rev>0)askRevive();else end()}}
 function askRevive(){active=false;car.visible=true;panel('<h1>Тебя поймали!</h1><p>Использовать возрождение? 💖 осталось: '+rev+'</p><p><small>Сдашься — возрождения сохранятся.</small></p>',[['💖 Возродиться',()=>{rev--;gap=25;inv=3;slowT=0;car.visible=false;active=true;$('overlay').style.display='none';updateHud();saveAll();banner('💖 Возрождение! Осталось: '+rev)}],['Сдаться',end]])}
 function event(){const r=(R()*3)|0;
- if(r===0){banner('⚠️ ОБВАЛ! Смотри на красные метки');const a=(R()*3)|0;addRock(a);addRock((a+1+(R()*2|0))%3)}
+ if(r===0){banner('⚠️ ОБВАЛ! Смотри на красные метки');const a=(R()*NL)|0;addRock(a);if(NL>2)addRock((a+1+(R()*2|0))%3)}
  else if(r===1){magT=8;banner('🧲 Магнитная буря: монеты летят к тебе')}
  else{boostT=6;banner('🚁 Дрон-охотник! Скорость выше, монеты ×2')}}
 // ---------- управление ----------
 function action(a){if(!active||paused)return;
- if(a==='left'||a==='right'){laneTarget=Math.max(0,Math.min(2,laneTarget+(a==='left'?-1:1)));$('turn').textContent=['Левая полоса','Центральная полоса','Правая полоса'][laneTarget]}
+ if(a==='left'||a==='right'){laneTarget=Math.max(0,Math.min(NL-1,laneTarget+(a==='left'?-1:1)));$('turn').textContent=duo?(laneTarget?'Правая':'Левая')+' полоса '+(actId?'🅱':'🅰'):['Левая полоса','Центральная полоса','Правая полоса'][laneTarget]}
  if(a==='jump'&&jump===0&&slide<=0){jump=.001;ph.j++}if(a==='slide'&&jump===0){slide=.7;ph.s++}}
 addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;const k=e.key.toLowerCase();if(k===' ')e.preventDefault();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
- if(k==='arrowleft'||k==='a')action('left');if(k==='arrowright'||k==='d')action('right');if(k==='arrowup'||k==='w'||k===' ')action('jump');if(k==='arrowdown'||k==='s')action('slide');if(k==='e'||k==='shift')useAbility()});
+ if(k==='arrowleft'||k==='a')action('left');if(k==='arrowright'||k==='d')action('right');if(k==='arrowup'||k==='w'||k===' ')action('jump');if(k==='arrowdown'||k==='s')action('slide');if(k==='q'||k==='tab'){e.preventDefault();swapRun()}if(k==='e'||k==='shift')useAbility()});
 let sx=0,sy=0;addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
-addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.max(Math.abs(dx),Math.abs(dy))<25)return;if(Math.abs(dx)>Math.abs(dy))action(dx<0?'left':'right');else action(dy<0?'jump':'slide')},{passive:true});
+addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.max(Math.abs(dx),Math.abs(dy))<25){if(duo&&active&&!paused&&!(e.target.closest&&e.target.closest('button')))swapRun();return}if(Math.abs(dx)>Math.abs(dy))action(dx<0?'left':'right');else action(dy<0?'jump':'slide')},{passive:true});
 // ---------- цикл ----------
 let last=performance.now();
 function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.04);last=now;
@@ -316,16 +404,16 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last
  if(cur!==lastB){lastB=cur;$('rule').textContent=cur.n+(cur.rule?' · '+cur.rule:'')+(aff()?' · ⭐ класс усилен':'');if(active&&dist>1)banner('📍 '+cur.n+(cur.rule?' — '+cur.rule:'')+(aff()?' ⭐ Класс усилен!':''),4000)}
  if(active&&!paused){
   runT+=dt;slowT-=dt;boostT-=dt;magT-=dt;inv-=dt;dashT-=dt;phaseT-=dt;dblT-=dt;spdT-=dt;shield-=dt;abCd=Math.max(0,abCd-dt*CR[cs().cr-1]*(aff()?1.5:1));shake=Math.max(0,shake-dt);
-  const sp=Math.min(20,13+dist/500)*(slowT>0?.65:1)*(boostT>0?1.25:1)*(dashT>0?1.4:1)*(spdT>0?1.3:1)*(cur.spd||1)*SP[cs().sp-1]*(aff()?1.06:1);curSp=sp;dist+=sp*dt;qAdd('dist',sp*dt);pos.z-=sp*dt;gap=Math.min(45,gap+dt*.5);
-  const k=Math.floor(dist/500);if(k!==storyIdx){storyIdx=k;story(locMode==='heart'?(k?'Кристальные залы тянутся дальше. Хищник идёт по следу…':'Глава ∞ · Сердце города. Здесь бьётся артефакт, гемы сами тянутся к тебе. Беги вглубь!'):k<6?S[k]:'Новый круг. «Ноктюрн» не сдаётся — их машины стали быстрее.')}
-  if(!won&&dist>=3000){win()}
+  const sp=Math.min(20,13+dist/500)*(slowT>0?.65:1)*(boostT>0?1.25:1)*(dashT>0?1.4:1)*(spdT>0?1.3:1)*(cur.spd||1)*SP[cs().sp-1]*(aff()?1.06:1);curSp=sp;dist+=sp*dt;qAdd('dist',sp*dt);if(locMode==='heart')qeAdd('eheart',sp*dt);pos.z-=sp*dt;gap=Math.min(45,gap+dt*.5);
+  const k=Math.floor(dist/500);if(k!==storyIdx){storyIdx=k;story(locMode==='heart'?(k?'Кристальные залы тянутся дальше. Хищник идёт по следу…':'Глава ∞ · Сердце города. Здесь бьётся артефакт, гемы сами тянутся к тебе. Беги вглубь!'):k<8?S[k]:'Новый круг. «Ноктюрн» не сдаётся — их машины стали быстрее.')}
+  if(!won&&dist>=4000){win()}
   evT-=dt;if(evT<=0&&dist>120){evT=14+R()*8;event()}
   wT-=dt;if(wT<=0){wT=35+R()*30;weather=(R()*3)|0;rain.visible=weather>0;banner(['☀️ Погода ясная','🌧️ Дождь: видимость хуже, скользко','⛈️ Гроза! Молнии и ливень'][weather],2500)}
   if(weather===2&&R()<.004){hemi.intensity=6;sfx('thunder')}
   if(rain.visible){rain.position.set(pos.x,0,pos.z);for(let i=1;i<900;i+=3){rp[i]-=25*dt;if(rp[i]<0)rp[i]+=14}rainG.attributes.position.needsUpdate=true}
   const bk=Math.floor((dist-300)/500);if(dist>300&&bk>bossDone){bossDone=bk;boss=12;bossFire=1;heli.visible=true;banner('🚁 БОСС: вертолёт «Ноктюрн» обстреливает полосы!',3500);sfx('boss')}
-  if(boss>0){boss-=dt;bossFire-=dt;heli.position.set(pos.x*.5+Math.sin(runT)*3,9,pos.z-28);heli.children[1].rotation.y+=dt*30;if(bossFire<=0){bossFire=1.1;addRock((R()*3)|0)}
-   if(boss<=0){heli.visible=false;score+=20;runCoins+=20;banner('✅ Вертолёт отстал! +20 🪙');updateHud()}}
+  if(boss>0){boss-=dt;bossFire-=dt;heli.position.set(pos.x*.5+Math.sin(runT)*3,9,pos.z-28);heli.children[1].rotation.y+=dt*30;if(bossFire<=0){bossFire=1.1;addRock((R()*NL)|0)}
+   if(boss<=0){heli.visible=false;addCoins(20);banner('✅ Вертолёт отстал! +20 🪙');updateHud()}}
   while(nextZ>pos.z-170)spawn();
   anT-=dt;if(anT<=0){anT=10;analyze()}
   if(habit){trapT-=dt;if(trapT<=0){trapT=dist>1500?4.5:6.5;trap()}}
@@ -336,17 +424,17 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last
   if(slide>0){slide-=dt;player.scale.y=.48}else player.scale.y=1;
   player.visible=phaseT>0?Math.floor(runT*20)%2===0:(inv<=0||Math.floor(runT*12)%2===0);art.scale.setScalar(1+Math.sin(runT*6)*.2);
   {const u=model.userData,w=jump>0?0:Math.sin(runT*13)*.9;u.L[0].rotation.x=w;u.L[1].rotation.x=-w;u.A[0].rotation.x=-w;u.A[1].rotation.x=w;if(jump>0){u.L[0].rotation.x=-.6;u.L[1].rotation.x=.4;u.A[0].rotation.x=u.A[1].rotation.x=-2.4}}
-  T('abil',abCd>0?Math.ceil(abCd)+' с':'⚡ '+cs().abName);{const e=$('abil'),o=abCd>0?.5:1;if(e._o!==o){e._o=o;e.style.opacity=o}}
-  const tx=pos.x,sh=shake*.5;camera.position.lerp(cv.set(tx,5.1,pos.z+7),dt*5);camera.position.x+=(R()-.5)*sh;camera.position.y+=(R()-.5)*sh;camera.lookAt(tx,1.2,pos.z-5);
+  T('abil',abCd>0?Math.ceil(abCd)+' с':duo?(Q2.alive?(Q2.hp<=1?'💞 Жертва':'🤝 Прикрыть'):'—'):'⚡ '+cs().abName);{const e=$('abil'),o=abCd>0?.5:1;if(e._o!==o){e._o=o;e.style.opacity=o}}
+  const tx=duo?0:pos.x,sh=shake*.5;camera.position.lerp(cv.set(tx,duo?9:5.1,pos.z+(duo?13:7)),dt*5);camera.position.x+=(R()-.5)*sh;camera.position.y+=(R()-.5)*sh;camera.lookAt(tx,1.2,pos.z-(duo?9:5));
   for(const s of segs)if(s.position.z-pos.z>35){s.position.z-=210;build(s)}
   // монеты
   for(let i=coinsA.length-1;i>=0;i--){const c=coinsA[i];c.rotation.y+=dt*3;
    if(magT>0&&Math.hypot(c.position.x-pos.x,c.position.z-pos.z)<10){const v=cv.set(pos.x,1.2,pos.z).sub(c.position).normalize().multiplyScalar(22*dt);c.position.add(v)}
-   if(Math.abs(c.position.x-pos.x)<1.35&&Math.abs(c.position.z-pos.z)<1.45){scene.remove(c);coinsA.splice(i,1);{const base=cur.cv*(boostT>0||dblT>0?2:1);cacc+=base*CN[cs().cn-1]*(aff()?1.5:1);const v=Math.floor(cacc);cacc-=v;score+=v;runCoins+=v;qAdd('coin',base);ph.c[laneTarget]++;sfx('coin')}gap=Math.min(45,gap+.4);updateHud()}
+   if(Math.abs(c.position.x-pos.x)<1.35&&Math.abs(c.position.z-pos.z)<1.45){scene.remove(c);coinsA.splice(i,1);{const base=cur.cv*(boostT>0||dblT>0?2:1);cacc+=base*CN[cs().cn-1]*(aff()?1.5:1)*duoMult();const v=Math.floor(cacc);cacc-=v;addCoins(v);qAdd('coin',base);ph.c[laneTarget]++;sfx('coin')}gap=Math.min(45,gap+.4);updateHud()}
    else if(c.position.z>pos.z+12){scene.remove(c);coinsA.splice(i,1)}}
-  for(let i=shardsA.length-1;i>=0;i--){const c=shardsA[i];c.rotation.y+=dt*4;if(Math.abs(c.position.x-pos.x)<1.35&&Math.abs(c.position.z-pos.z)<1.45){scene.remove(c);shardsA.splice(i,1);shards+=5;sfx('q');updateHud()}else if(c.position.z>pos.z+12){scene.remove(c);shardsA.splice(i,1)}}
+  for(let i=shardsA.length-1;i>=0;i--){const c=shardsA[i];c.rotation.y+=dt*4;if(Math.abs(c.position.x-pos.x)<1.35&&Math.abs(c.position.z-pos.z)<1.45){scene.remove(c);shardsA.splice(i,1);if(addGems(5)>0&&evActive()){epAdd(1);qeAdd('egem',1)}sfx('q');updateHud()}else if(c.position.z>pos.z+12){scene.remove(c);shardsA.splice(i,1)}}
   for(let i=buffsA.length-1;i>=0;i--){const b=buffsA[i];b.m.position.y=1.5+Math.sin(runT*4+i)*.2;if(Math.abs(b.m.position.x-pos.x)<1.4&&Math.abs(b.m.position.z-pos.z)<1.5){scene.remove(b.m);buffsA.splice(i,1);applyBuff(b.t)}else if(b.m.position.z>pos.z+12){scene.remove(b.m);buffsA.splice(i,1)}}
-  bub.visible=shield>0;{const L=[];if(spdT>0)L.push('⚡'+Math.ceil(spdT));if(shield>0)L.push('🛡️'+Math.ceil(shield));if(magT>0)L.push('🧲'+Math.ceil(magT));if(dblT>0)L.push('✨'+Math.ceil(dblT));if(dashT>0)L.push('🔥');if(phaseT>0)L.push('🌀');const e=$('buffs'),t=L.join('  ');if(e._v!==t){e._v=t;e.textContent=t;e.style.display=L.length?'block':'none'}}
+  if(bub.parent!==player)player.add(bub);bub.visible=shield>0;{const L=[];if(spdT>0)L.push('⚡'+Math.ceil(spdT));if(shield>0)L.push('🛡️'+Math.ceil(shield));if(magT>0)L.push('🧲'+Math.ceil(magT));if(dblT>0)L.push('✨'+Math.ceil(dblT));if(dashT>0)L.push('🔥');if(phaseT>0)L.push('🌀');const e=$('buffs'),t=L.join('  ');if(e._v!==t){e._v=t;e.textContent=t;e.style.display=L.length?'block':'none'}}
   // метки обвала
   for(let i=rocks.length-1;i>=0;i--){const r=rocks[i];r.t-=dt;r.mk.visible=Math.floor(r.t*8)%2===0;
    if(r.t<=0){scene.remove(r.mk);rocks.splice(i,1);const o=addObs('rock',r.x,r.z,cur);o.fall=true;o.m.position.y=14}}
@@ -354,15 +442,16 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last
   for(let i=obs.length-1;i>=0;i--){const o=obs[i];
    if(o.dead||o.m.position.z>pos.z+12){scene.remove(o.m);obs.splice(i,1);continue}
    if(o.fall){o.m.position.y-=22*dt;if(o.m.position.y<=0){o.m.position.y=0;o.fall=false;shake=.5}continue}
-   if(Math.abs(o.m.position.x-pos.x)<1.15&&Math.abs(o.m.position.z-pos.z)<1.2){
+   if(Math.abs(o.m.position.x-pos.x)<(o.hw||1.15)&&Math.abs(o.m.position.z-pos.z)<1.2){
     if((o.type==='crate'&&slide>0)||dashT>0){smash(o);continue}
     if(phaseT>0)continue;
-    if(o.type==='beam'){if(slide<=0)hurt('🪤 Ловушка сверху! Нужен подкат');continue}
+    if(o.type==='beam'){if(slide<=0)hurt('🪧 Низкая балка! Присядь (↓)');continue}
     if(player.position.y>o.h-.1&&o.type!=='wall')continue;
     hurt(o.type==='wall'?'💥 Стена! Погоня ближе':'💥 Ты споткнулся! Погоня ближе')}}
   // частицы
   for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.l-=dt;p.v.y-=18*dt;p.m.position.addScaledVector(p.v,dt);if(p.l<=0){scene.remove(p.m);parts.splice(i,1)}}
   // призраки и запись
+  if(duo){partnerStep(dt);duoLevers();duoHud()}
   updGhosts(dt);recT+=dt;if(recT>=.2&&rec.length<2700){recT-=.2;rec.push(+dist.toFixed(1),+pos.x.toFixed(1),+player.position.y.toFixed(1))}
   // погоня
   car.position.set(pos.x*.9,0,pos.z+gap*.6);car.visible=gap<10;sirA.visible=Math.floor(runT*6)%2===0;sirB.visible=!sirA.visible;
