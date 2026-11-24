@@ -25,7 +25,7 @@ button{background:var(--ac);color:var(--bt);border:0;border-radius:12px;padding:
 #fx{position:absolute;inset:0;overflow:hidden;pointer-events:none}@keyframes fall{from{transform:translateY(-12vh) rotate(0)}to{transform:translateY(112vh) rotate(360deg)}}
 </style></head><body>
 <div id="hud">🪙 <span id="coins">0</span><br>🏁 <span id="distance">0</span> м<br>💎 <span id="shards">0</span> 💖 <span id="rev">0</span><br><span id="cap" style="font-size:11px;font-weight:400"></span><br><span id="rule" style="font-size:12px;font-weight:400"></span><br><button id="shopOpen" style="padding:7px 12px;font-size:14px;margin-top:7px">Магазин</button></div>
-<div id="turn">Беги вперёд!</div><div id="chase"><i id="chaseBar"></i><b id="chaseTxt"></b></div><div id="banner"></div><div id="pred"></div><div id="story"></div><div id="vig"></div><div id="frz"></div><div id="duo"></div><button id="swap">⇄</button><div id="buffs"></div><button id="abil">⚡</button>
+<div id="turn">Беги вперёд!</div><div id="chase"><i id="chaseBar"></i><b id="chaseTxt"></b></div><div id="banner"></div><div id="pred"></div><div id="story"></div><div id="vig"></div><div id="frz"></div><div id="fps" style="position:fixed;top:2px;right:2px;z-index:9;color:#0f0;font:11px monospace;background:#0008;padding:1px 4px;display:none"></div><button id="admb" style="position:fixed;right:12px;top:52px;display:none;padding:6px 10px;font-size:14px;margin:0;z-index:3">🛠</button><div id="duo"></div><button id="swap">⇄</button><div id="buffs"></div><button id="abil">⚡</button>
 <div id="help">← → полоса · ↑ прыжок · ↓ присесть/подкат · E способность · свайпы</div>
 <div id="shop" style="display:none;position:fixed;inset:0;background:#000b;z-index:6;color:#fff;align-items:center;justify-content:center">
 <div class="panel" style="width:min(92vw,390px);max-height:85vh;overflow:auto"><h1>🛍️ Магазин</h1><p>💎 Гемы: <b id="shopGems">0</b> · 🪙 Монеты: <b id="shopCoins">0</b></p><p><small>🏃 скорость · 🪙 монеты · ⏱ перезарядка способности (★ от 1 до 4). В «своём» районе класс усилен: скорость +6%, монеты ×1.5, перезарядка ×1.5.</small></p><div id="shopItems"></div><button id="shopClose">Закрыть</button></div></div>
@@ -329,8 +329,39 @@ const VER='v31',LOG=[{"v": "v31", "n": "Ниндзя и новые баффы", 
 function updates(){localStorage.setItem('crSeen',VER);panel('<h1>📜 Обновления</h1><div style="text-align:left;font-size:12.5px;max-height:55vh;overflow:auto">'+LOG.map(e=>'<b>'+e.v+' · '+e.n+'</b>'+e.t.map(x=>'<br>• '+x).join('')).join('<br><br>')+'</div>',[back])}
 const CODES={UPDATE:{t:'🪙500 + 💎100 + 🎟1 спин',f:()=>{score+=500;shards+=100;spins+=1}}};
 let usedCodes=[];try{usedCodes=JSON.parse(localStorage.getItem('crCodes'))||[]}catch(e){}
+let admin=localStorage.getItem('crAdm')==='1',god=false,noCd=false,showFps=false,startD=0,admTheme=null;
+const hsh=t=>{let h=2166136261;for(const ch of t){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)>>>0}return h},ADMH=[795897466];
+function goStart(){dist=startD;pos.z=-startD;nextZ=-startD-35;lastB=null;segs.forEach((g,i)=>{g.position.z=-startD-i*30;build(g)});camera.position.set(0,duo?9:5.1,pos.z+(duo?13:7))}
+let admAmt=1000,admQ=[];
+const AB=[['⚡ Ускоритель','spdT'],['🛡 Щит','shield'],['🧲 Магнит','magT'],['✨ Монеты ×2','dblT'],['❄️ Заморозка','freezeT'],['🪽 Двойной прыжок','dJT'],['🔥 Рывок (сносит всё)','dashT'],['🌀 Фазовый сдвиг','phaseT'],['💠 Неуязвимость','inv']];
+function admSet(k,v){if(k==='spdT')spdT=v;else if(k==='shield')shield=v;else if(k==='magT')magT=v;else if(k==='dblT')dblT=v;else if(k==='freezeT')freezeT=v;else if(k==='dJT')dJT=v;else if(k==='dashT')dashT=v;else if(k==='phaseT')phaseT=v;else if(k==='inv')inv=v}
+const admIn=(v,l)=>'<input id="adm" type="number" value="'+v+'" style="width:100%;padding:9px;font-size:16px;border-radius:10px;border:0;text-align:center;margin:4px 0"><small>'+l+'</small>';
+const admV=d=>{const e=$('adm'),n=e&&e.value!==''?+e.value:d;return isFinite(n)?n:d};
+const admBack=()=>['← Назад',()=>adminMenu()];
+const admClose=()=>[active&&paused?'▶ Закрыть':'← В меню',()=>{if(active&&paused){paused=false;$('overlay').style.display='none'}else menu()}];
+function adminMenu(msg){const gv=(l,f)=>[l,()=>{const n=admV(admAmt);admAmt=n;f(n);saveAll();updateHud();adminMenu(l+' '+(n>0?'+':'')+n+' ✓')}];
+ panel('<h1>🛠 Админ</h1><p><small>🪙'+score+' · 💎'+shards+' · 🎟'+spins+' · 💖'+rev+' · ⭐'+ep+'</small></p>'+admIn(admAmt,'количество (можно отрицательное)')+(msg?'<p><b>'+msg+'</b></p>':''),[
+ gv('🪙 Монеты',n=>{score=Math.max(0,score+n)}),gv('💎 Гемы',n=>{shards=Math.max(0,shards+n)}),gv('🎟 Билеты',n=>{spins=Math.max(0,spins+n)}),gv('💖 Возрождения',n=>{rev=Math.max(0,rev+n)}),gv('⭐ Очки пути',n=>{ep=Math.max(0,ep+n)}),
+ ['🎭 Классы',()=>admClasses()],['✨ Баффы',()=>admBuffs()],['⚙️ Прочее',()=>admMisc()],admClose()])}
+function admClasses(msg){const sv=()=>localStorage.setItem('cityRunnerSkins',JSON.stringify(ownedSkins));
+ panel('<h1>🎭 Классы</h1><p><small>Нажми, чтобы выдать или забрать</small></p>'+(msg?'<p><b>'+msg+'</b></p>':''),[...skins.map(k=>[(ownedSkins.includes(k.id)?'✅ ':'➕ ')+k.name,()=>{const i=ownedSkins.indexOf(k.id);if(i>=0){if(k.id==='blue')return admClasses('Базовый класс нельзя забрать');ownedSkins.splice(i,1);if(equippedSkin===k.id){equippedSkin='blue';localStorage.setItem('cityRunnerEquipped','blue');applySkin()}}else ownedSkins.push(k.id);sv();admClasses((i>=0?'Забрано: ':'Выдано: ')+k.name)}]),
+ ['🎁 Все классы',()=>{skins.forEach(k=>{if(!ownedSkins.includes(k.id))ownedSkins.push(k.id)});sv();admClasses('Выданы все классы')}],
+ ['🎨 Все скины',()=>{for(const k in VS)varOwn[k]=VS[k].map((_,i)=>i);localStorage.setItem('crVar',JSON.stringify(varOwn));admClasses('Выданы все скины')}],admBack()])}
+function admBuffs(msg){panel('<h1>✨ Баффы</h1>'+admIn(60,'длительность, секунд')+'<p><small>'+(active?'Применится сразу':'Применится в начале забега')+'</small></p>'+(msg?'<p><b>'+msg+'</b></p>':''),
+ [...AB.map(([l,k])=>[l,()=>{const sec=Math.max(1,admV(60));if(active)admSet(k,sec);else admQ.push([k,sec]);admBuffs(l+' на '+sec+' с ✓')}]),['🧹 Снять все',()=>{admQ=[];if(active)AB.forEach(([l,k])=>admSet(k,0));admBuffs('Баффы сняты')}],admBack()])}
+function admMisc(msg){const g=(l,f)=>[l,()=>{f();saveAll();updateHud();admMisc('Готово ✓')}],TL=[null,'halloween','newyear','summer','none'];
+ panel('<h1>⚙️ Прочее</h1>'+(msg?'<p><b>'+msg+'</b></p>':''),[
+ g('👑 Pro Pass: '+(pro?'вкл':'выкл'),()=>{pro=!pro}),
+ g('🔓 Открыть всё',()=>{skins.forEach(k=>{if(!ownedSkins.includes(k.id))ownedSkins.push(k.id)});localStorage.setItem('cityRunnerSkins',JSON.stringify(ownedSkins));for(const k in VS)varOwn[k]=VS[k].map((_,i)=>i);localStorage.setItem('crVar',JSON.stringify(varOwn));DO.forEach(k=>{if(!diffDone.includes(k))diffDone.push(k)});localStorage.setItem('crDone',JSON.stringify(diffDone))}),
+ g('🛡 Бессмертие: '+(god?'вкл':'выкл'),()=>{god=!god}),g('⏱ Без перезарядки: '+(noCd?'вкл':'выкл'),()=>{noCd=!noCd}),
+ g('📍 Старт с '+startD+' м',()=>{startD=(startD+500)%4500}),
+ g('🌦 Тема: '+(admTheme||'авто'),()=>{admTheme=TL[(TL.indexOf(admTheme)+1)%TL.length];curTh='?';applyTheme()}),
+ g('📈 FPS: '+(showFps?'вкл':'выкл'),()=>{showFps=!showFps;$('fps').style.display=showFps?'block':'none'}),
+ ['🎡 Ивент заново (19 дн.)',()=>{if(confirm('Перезапустить ивент?')){localStorage.setItem('crEvStart',Date.now());location.reload()}}],
+ ['⛔ Закончить ивент',()=>{if(confirm('Закончить ивент?')){localStorage.setItem('crEvStart',Date.now()-19*864e5-1000);location.reload()}}],
+ ['🗑 Стереть прогресс',()=>{if(confirm('Стереть ВЕСЬ прогресс?')){localStorage.clear();location.reload()}}],admBack()])}
 function codesMenu(msg){panel('<h1>🎁 Коды</h1><p><small>Введи промокод и получи награду. Каждый код активируется один раз.</small></p><input id="cin" placeholder="КОД" maxlength="24" autocomplete="off" autocapitalize="characters" style="width:100%;padding:10px;font-size:16px;border-radius:10px;border:0;text-align:center;text-transform:uppercase">'+(msg?'<p><b>'+msg+'</b></p>':''),[['✅ Активировать',redeem],back])}
-function redeem(){const v=($('cin').value||'').trim().toUpperCase();if(!v)return codesMenu('Введи код');const c=CODES[v];if(!c)return codesMenu('❌ Такого кода нет');if(usedCodes.includes(v))return codesMenu('Этот код уже активирован');usedCodes.push(v);try{localStorage.setItem('crCodes',JSON.stringify(usedCodes))}catch(e){}c.f();saveAll();updateHud();sfx('q');codesMenu('🎉 Код принят: '+c.t)}
+function redeem(){const v=($('cin').value||'').trim().toUpperCase();if(!v)return codesMenu('Введи код');if(ADMH.includes(hsh(v))){admin=true;localStorage.setItem('crAdm','1');return adminMenu('Режим администратора включён')}const c=CODES[v];if(!c)return codesMenu('❌ Такого кода нет');if(usedCodes.includes(v))return codesMenu('Этот код уже активирован');usedCodes.push(v);try{localStorage.setItem('crCodes',JSON.stringify(usedCodes))}catch(e){}c.f();saveAll();updateHud();sfx('q');codesMenu('🎉 Код принят: '+c.t)}
 const DF={easy:{n:'😊 Изи',t:'медленнее, меньше препятствий, мягкие удары, монеты ×0.8',spd:.9,den:.7,pen:10,cm:.8,trap:1.4,gap:38,hp:4,row:1},med:{n:'😐 Средний',t:'обычная игра',spd:1,den:1,pen:14,cm:1,trap:1,gap:30,hp:3,row:1},hard:{n:'😈 Сложный',t:'быстрее, больше препятствий и ловушек, сильные удары, монеты ×1.25',spd:1.1,den:1.3,pen:18,cm:1.25,trap:.7,gap:24,hp:2,row:1},night:{n:'💀 Кошмар',t:'препятствий ×8, быстрее, свободна лишь одна полоса, ловушки чаще, монеты ×2',spd:1.15,den:8,pen:8,cm:2,trap:.5,gap:24,hp:1,row:.15,nm:true}},DO=['easy','med','hard','night'];
 let dif=localStorage.getItem('crDif')||'easy',diffDone=[];try{diffDone=JSON.parse(localStorage.getItem('crDone'))||[]}catch(e){}
 const isOpen=k=>k==='easy'||diffDone.includes(DO[DO.indexOf(k)-1]);if(!DF[dif]||!isOpen(dif))dif='easy';
@@ -339,11 +370,11 @@ const THS={halloween:{i:'🎃',m:'🎃 Хэллоуин! Тыквы, летуч�
 newyear:{i:'🎄',m:'🎄 С Новым годом! Праздничный интерфейс',v:{'--ac':'#e0353d','--bt':'#ffffff','--pn':'#0f2a1ef2','--bd':'#ffd23f88','--ov':'#06201acc'},fx:['❄️','❄️','🎄','⭐']},
 summer:{i:'☀️',m:'☀️ Лето! Тёплый интерфейс',v:{'--ac':'#29c4a9','--bt':'#00231f','--pn':'#164e63f2','--bd':'#ffe08a88','--ov':'#05303acc'},fx:['☀️','🌴','🍉','🕶️']}};
 const THDEF={'--ac':'#ffb52e','--bt':'#000000','--pn':'#18212bef','--bd':'#ffffff44','--ov':'#0009'};
-function themeKey(){let p=null;try{p=new URLSearchParams(location.search).get('theme')}catch(e){}if(p&&(THS[p]||p==='none'))return p==='none'?null:p;const d=new Date(),m=d.getMonth()+1,n=d.getDate();if((m===10&&n>=28)||(m===11&&n<=1))return'halloween';if((m===12&&n>=20)||(m===1&&n<=1))return'newyear';if(m>=6&&m<=8)return'summer';return null}
+function themeKey(){let p=null;try{p=new URLSearchParams(location.search).get('theme')}catch(e){}if(!p&&admTheme)p=admTheme;if(p&&(THS[p]||p==='none'))return p==='none'?null:p;const d=new Date(),m=d.getMonth()+1,n=d.getDate();if((m===10&&n>=28)||(m===11&&n<=1))return'halloween';if((m===12&&n>=20)||(m===1&&n<=1))return'newyear';if(m>=6&&m<=8)return'summer';return null}
 let TH={i:'🏃',m:''},curTh='?';
 function applyTheme(){const k=themeKey();if(k===curTh)return;curTh=k;const t=k?THS[k]:null;TH=t?{i:t.i,m:t.m}:{i:'🏃',m:''};const r=document.documentElement.style,v=t?t.v:THDEF;for(const p in v)r.setProperty(p,v[p]);
  const fx=$('fx');fx.innerHTML='';if(t)for(let i=0;i<14;i++){const e=document.createElement('span');e.textContent=t.fx[i%t.fx.length];e.style.cssText='position:absolute;top:0;left:'+(R()*96)+'%;font-size:'+(16+R()*18|0)+'px;animation:fall '+(7+R()*7)+'s linear infinite;animation-delay:-'+(R()*10)+'s;opacity:.85';fx.appendChild(e)}}
-function menu(){applyTheme();panel('<h1>'+TH.i+' CITY RUNNER 3D</h1>'+(TH.m?'<p><small>'+TH.m+'</small></p>':'')+'<p>Беги с артефактом «Сердце города» до убежища (4500 м)!</p><p><small>💎 '+shards+' · 🪙 '+score+' · Рекорд: '+best+' м · '+VER+' · '+DF[dif].n+'<br>'+cs().name+' · 🏃'+stars(cs().sp)+' 🪙'+stars(cs().cn)+' ⏱'+stars(cs().cr)+'</small></p>',[['▶ Играть',begin],['👥 '+(gameMode==='duo'?'Пара':'Соло'),()=>{gameMode=gameMode==='duo'?'solo':'duo';localStorage.setItem('crMode',gameMode);reset();setupGhosts();menu()}],['🎚 '+DF[dif].n,diffMenu],['🎡 Ивент'+(evActive()?' · '+evDays()+' дн.':''),eventMenu],['👤 Классы',shopOpen],['📋 Задания',quests],['👻 Призраки',ghostMenu],['📖 Сюжет',lore],['🎁 Коды',codesMenu],['📜 Обновления'+(localStorage.getItem('crSeen')!==VER?' 🔴':''),updates],['🔊 '+(sound?'Звук вкл':'Звук выкл'),()=>{sound=!sound;localStorage.setItem('crSnd',sound?1:0);menu()}]])}
+function menu(){applyTheme();panel('<h1>'+TH.i+' CITY RUNNER 3D</h1>'+(TH.m?'<p><small>'+TH.m+'</small></p>':'')+'<p>Беги с артефактом «Сердце города» до убежища (4500 м)!</p><p><small>💎 '+shards+' · 🪙 '+score+' · Рекорд: '+best+' м · '+VER+' · '+DF[dif].n+'<br>'+cs().name+' · 🏃'+stars(cs().sp)+' 🪙'+stars(cs().cn)+' ⏱'+stars(cs().cr)+'</small></p>',[['▶ Играть',begin],['👥 '+(gameMode==='duo'?'Пара':'Соло'),()=>{gameMode=gameMode==='duo'?'solo':'duo';localStorage.setItem('crMode',gameMode);reset();setupGhosts();menu()}],['🎚 '+DF[dif].n,diffMenu],['🎡 Ивент'+(evActive()?' · '+evDays()+' дн.':''),eventMenu],['👤 Классы',shopOpen],['📋 Задания',quests],['👻 Призраки',ghostMenu],['📖 Сюжет',lore],['🎁 Коды',codesMenu],...(admin?[['🛠 Админ',()=>adminMenu()]]:[]),['📜 Обновления'+(localStorage.getItem('crSeen')!==VER?' 🔴':''),updates],['🔊 '+(sound?'Звук вкл':'Звук выкл'),()=>{sound=!sound;localStorage.setItem('crSnd',sound?1:0);menu()}]])}
 function quests(){panel('<h1>📋 Задания дня</h1><p style="text-align:left">'+QD.map(q=>(Q.done.includes(q.k)?'✅ ':'⬜ ')+q.t+' — '+Math.min(q.n,Math.floor(Q.p[q.k]))+'/'+q.n+' (+'+q.r+' 🪙)').join('<br>')+'</p>',[back])}
 function lore(){panel('<h1>📖 Сюжет</h1><p style="text-align:left;font-size:13px">'+S.join('<br><br>')+'</p>',[back])}
 const AL='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_',cl=(v)=>Math.max(0,Math.min(63,Math.round(v)));
@@ -403,19 +434,19 @@ function partnerStep(dt){const r=Q2;if(!r.alive)return;r.inv-=dt;r.sh-=dt;const 
  for(const o of obs){if(o.dead||o.fall)continue;if(Math.abs(o.m.position.z-pos.z)<1.2&&Math.abs(o.m.position.x-r.x)<(o.hw||1.15)){
    if(o.type==='crate'&&r.slide>0){smash(o);continue}
    if(o.type==='beam'){if(r.slide>0)continue}else if(g.position.y>o.h-.1&&o.type!=='wall'&&o.type!=='gate')continue;
-   if(r.inv>0)continue;if(r.sh>0){r.sh=0;r.inv=1;continue}
+   if(r.inv>0||god)continue;if(r.sh>0){r.sh=0;r.inv=1;continue}
    r.inv=1.6;r.hp--;shake=.3;sfx('hit');banner((r.id?'🅱':'🅰')+' споткнулся! ❤'+Math.max(0,r.hp),1200);
    if(r.hp<=0){r.alive=false;g.visible=false;duoLost=true;banner('💔 Напарник выбыл! Бонусы потеряны',3000)}}}
  for(let i=coinsA.length-1;i>=0;i--){const c=coinsA[i];if(Math.abs(c.position.x-r.x)<1.35&&Math.abs(c.position.z-pos.z)<1.45){scene.remove(c);coinsA.splice(i,1);gain()}}}
-$('swap').onclick=swapRun;
+$('swap').onclick=swapRun;$('admb').onclick=()=>{if(!active)return;paused=true;adminMenu()};
 function reset(){setMode();segs.forEach(g=>scene.remove(g));segs=[];[...obs.map(o=>o.m),...shardsA,...buffsA.map(b=>b.m),...coinsA,...parts.map(p=>p.m),...rocks.map(r=>r.mk)].forEach(m=>scene.remove(m));obs=[];coinsA=[];shardsA=[];buffsA=[];parts=[];rocks=[];
  runCoins=0;runGems=0;capC=capG=0;dist=0;runT=0;recT=0;rec=[];lastF.length=0;gap=DF[dif].gap;inv=0;slowT=0;boostT=0;magT=0;shake=0;evT=16;nextZ=-35;storyIdx=-1;won=false;lastB=null;dashT=phaseT=dblT=abCd=spdT=shield=freezeT=dJT=0;jh=1;jbuf=0;weather=0;wT=40;boss=0;bossDone=-1;rain.visible=false;heli.visible=false;curGhost=null;petSt=0;petCd=4;petTgt=null;pet.position.set(1.2,2.6,0);ph={j:0,s:0,c:[0,0,0]};habit=null;anT=12;trapT=8;$('pred').textContent='🐆 Хищник изучает тебя…';
  pos.set(0,0,0);laneTarget=1;jump=0;slide=0;player.position.set(0,0,0);player.scale.set(1,1,1);player.visible=true;car.visible=false;
  scene.background.copy(biomeAt(0).c);scene.fog.color.copy(biomeAt(0).c);scene.fog.near=35;scene.fog.far=145;hemi.intensity=2;
  for(let i=0;i<7;i++){const g=new THREE.Group();g.position.z=-i*30;scene.add(g);build(g);segs.push(g)}duoInit();updateHud()}
-function begin(){reset();active=true;$('overlay').style.display='none';if(duo)banner('👥 Тап или Q — переключить бегуна · E — помощь · жёлтый рычаг открывает ворота',5000)}
+function begin(){reset();if(startD)goStart();admQ.forEach(([k,v])=>admSet(k,v));admQ=[];active=true;$('overlay').style.display='none';if(duo)banner('👥 Тап или Q — переключить бегуна · E — помощь · жёлтый рычаг открывает ворота',5000)}
 // ---------- события и урон ----------
-function hurt(msg){if(inv>0)return;if(shield>0){shield=0;inv=1;shake=.3;banner('🛡️ Щит поглотил удар!',1200);sfx('boom');return}if(duo){duoHit(msg);return}inv=1.6;sfx('hit');slowT=1;gap-=DF[dif].pen;shake=.6;banner(msg,1500);if(gap<=0){if(rev>0)askRevive();else end()}}
+function hurt(msg){if(god||inv>0)return;if(shield>0){shield=0;inv=1;shake=.3;banner('🛡️ Щит поглотил удар!',1200);sfx('boom');return}if(duo){duoHit(msg);return}inv=1.6;sfx('hit');slowT=1;gap-=DF[dif].pen;shake=.6;banner(msg,1500);if(gap<=0){if(rev>0)askRevive();else end()}}
 function askRevive(){active=false;car.visible=true;panel('<h1>Тебя поймали!</h1><p>Использовать возрождение? 💖 осталось: '+rev+'</p><p><small>Сдашься — возрождения сохранятся.</small></p>',[['💖 Возродиться',()=>{rev--;gap=25;inv=3;slowT=0;car.visible=false;active=true;$('overlay').style.display='none';updateHud();saveAll();banner('💖 Возрождение! Осталось: '+rev)}],['Сдаться',end]])}
 function event(){const r=(R()*3)|0;
  if(r===0){banner('⚠️ ОБВАЛ! Смотри на красные метки');const a=(R()*NL)|0;addRock(a);if(NL>2)addRock((a+1+(R()*2|0))%3)}
@@ -440,7 +471,7 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last
  {const am=cur.amb;amb.visible=!!am;if(am){amb.material.color.setHex(am.c);amb.material.size=am.s;amb.position.set(pos.x,0,pos.z);for(let i=0;i<600;i+=3){ap[i]+=am.vx*dt;ap[i+1]+=am.vy*dt;ap[i+2]+=(active&&!paused?curSp:0)*dt;if(ap[i+1]<0)ap[i+1]+=12;if(ap[i+1]>12)ap[i+1]-=12;if(ap[i]>16)ap[i]-=32;if(ap[i]<-16)ap[i]+=32;if(ap[i+2]>6)ap[i+2]-=40}ambG.attributes.position.needsUpdate=true}}hemi.intensity+=(cur.light-hemi.intensity)*dt;
  if(cur!==lastB){lastB=cur;$('rule').textContent=cur.n+(cur.rule?' · '+cur.rule:'')+(aff()?' · ⭐ класс усилен':'');if(active&&dist>1)banner('📍 '+cur.n+(cur.rule?' — '+cur.rule:'')+(aff()?' ⭐ Класс усилен!':''),4000)}
  if(active&&!paused){
-  runT+=dt;slowT-=dt;boostT-=dt;magT-=dt;inv-=dt;dashT-=dt;phaseT-=dt;dblT-=dt;spdT-=dt;shield-=dt;freezeT-=dt;dJT-=dt;jbuf-=dt;abCd=Math.max(0,abCd-dt*CR[cs().cr-1]*(aff()?1.5:1));shake=Math.max(0,shake-dt);
+  runT+=dt;slowT-=dt;boostT-=dt;magT-=dt;inv-=dt;dashT-=dt;phaseT-=dt;dblT-=dt;spdT-=dt;shield-=dt;freezeT-=dt;dJT-=dt;jbuf-=dt;abCd=noCd?0:Math.max(0,abCd-dt*CR[cs().cr-1]*(aff()?1.5:1));shake=Math.max(0,shake-dt);
   const sp=Math.min(20,13+dist/500)*(slowT>0?.65:1)*(boostT>0?1.25:1)*(dashT>0?1.4:1)*(spdT>0?1.3:1)*(freezeT>0?.8:1)*(cur.spd||1)*DF[dif].spd*SP[cs().sp-1]*(aff()?1.06:1);curSp=sp;dist+=sp*dt;qAdd('dist',sp*dt);if(biomeAt(dist).type==='heart')qeAdd('eheart',sp*dt);pos.z-=sp*dt;gap=Math.min(45,gap+dt*(freezeT>0?3:.5));
   const k=Math.floor(dist/500);if(k!==storyIdx){storyIdx=k;story(k<9?S[k]:'Новый круг. «Ноктюрн» не сдаётся — их машины стали быстрее.')}
   if(!won&&dist>=4500){win()}
@@ -473,6 +504,7 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last
   for(let i=buffsA.length-1;i>=0;i--){const b=buffsA[i];b.m.position.y=1.5+Math.sin(runT*4+i)*.2;if(Math.abs(b.m.position.x-pos.x)<1.4&&Math.abs(b.m.position.z-pos.z)<1.5){scene.remove(b.m);buffsA.splice(i,1);applyBuff(b.t)}else if(b.m.position.z>pos.z+12){scene.remove(b.m);buffsA.splice(i,1)}}
   if(bub.parent!==player)player.add(bub);bub.visible=shield>0;{const fo=freezeT>0?1:0,fe=$('frz');if(fe._o!==fo){fe._o=fo;fe.style.opacity=fo}}{const L=[];if(spdT>0)L.push('⚡'+Math.ceil(spdT));if(shield>0)L.push('🛡️'+Math.ceil(shield));if(magT>0)L.push('🧲'+Math.ceil(magT));if(dblT>0)L.push('✨'+Math.ceil(dblT));if(freezeT>0)L.push('❄️'+Math.ceil(freezeT));if(dJT>0)L.push('🪽'+Math.ceil(dJT));if(dashT>0)L.push('🔥');if(phaseT>0)L.push('🌀');const e=$('buffs'),t=L.join('  ');if(e._v!==t){e._v=t;e.textContent=t;e.style.display=L.length?'block':'none'}}
   {const fz=scene.fog.far+8;for(const c of coinsA)c.visible=pos.z-c.position.z<fz;for(const o of obs)o.m.visible=pos.z-o.m.position.z<fz;for(const c of shardsA)c.visible=pos.z-c.position.z<fz;for(const q of buffsA)q.m.visible=pos.z-q.m.position.z<fz;for(const g of segs)g.visible=pos.z-g.position.z<fz}
+  {const e=$('admb'),d=admin?'block':'none';if(e._d!==d){e._d=d;e.style.display=d}}
   // метки обвала
   for(let i=rocks.length-1;i>=0;i--){const r=rocks[i];r.t-=dt;r.mk.visible=Math.floor(r.t*8)%2===0;
    if(r.t<=0){scene.remove(r.mk);rocks.splice(i,1);const o=addObs('rock',r.x,r.z,cur);o.fall=true;o.m.position.y=14}}
@@ -497,7 +529,7 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last
   {const vo=Math.min(1,Math.max(0,(12-gap)/12)*.7+Math.max(0,inv-1.1)).toFixed(2),ve=$('vig');if(ve._o!==vo){ve._o=vo;ve.style.opacity=vo}}
   updateHud()}else if(!active){const t=now/2500;camera.position.set(pos.x+Math.sin(t)*4,2.6,pos.z+Math.cos(t)*4);camera.lookAt(pos.x,1.3,pos.z)}
  renderer.render(scene,camera);
- fa+=dt;if(++fc>=40){const av=fa/fc;if(av>.024&&pr>.7){pr=Math.max(.7,pr-.15);renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight)}else if(av<.0155&&pr<prMax){pr=Math.min(prMax,pr+.1);renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight)}fa=fc=0}}
+ fa+=dt;if(++fc>=40){const av=fa/fc;if(showFps)T('fps',Math.round(1/av)+' FPS · '+pr.toFixed(2)+'×');if(av>.024&&pr>.7){pr=Math.max(.7,pr-.15);renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight)}else if(av<.0155&&pr<prMax){pr=Math.min(prMax,pr+.1);renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight)}fa=fc=0}}
 camera.position.set(0,5,8);camera.lookAt(0,1,0);applySkin();reset();setupGhosts();menu();requestAnimationFrame(animate);
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 </script></body></html>
